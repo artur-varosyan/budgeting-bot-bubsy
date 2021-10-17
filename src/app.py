@@ -30,6 +30,8 @@ def chatbot():
             showBudget()  
         elif "spent" in words or "paid" in words:
             newExpense(words)
+        else:
+            sendMessage("Sorry I don't quite understand")
 
 def showBudget():
     print("show budget")
