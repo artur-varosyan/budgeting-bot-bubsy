@@ -1,22 +1,25 @@
 from datetime import date, timedelta
-
 from messaging import sendMessage, getMessage
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
-CATEGORIES = {"groceries", "shopping", "transport", "entertainment", "other"}
+CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
+              "toiletries", "subscriptions", "phone", "housing", "other"}
 DAYS = {"today", "yesterday"}
 
+
 # The object representing a single expense
-class expense:
+class Expense:
     def __init__(self, amount, category, date):
         self.amount = amount
         self.category = category
         self.date = date
 
+
 def adminTerminal():
     # In future will run concurrently to chatbot()
     # and will have backdoor access to that process
     chatbot()
+
 
 def chatbot():
     stop = False
@@ -27,11 +30,12 @@ def chatbot():
         if "exit" in words:
             stop = True
         elif "show" in words and "budget" in words or "spending" in words:
-            showBudget()  
+            showBudget()
         elif "spent" in words or "paid" in words:
             newExpense(words)
         else:
             sendMessage("Sorry I don't quite understand")
+
 
 def showBudget():
     print("show budget")
@@ -44,8 +48,10 @@ def newExpense(words):
     for word in words:
         if word[0] == "£" or word[0] in DIGITS:
             # identified amount of expense
-            if word[0] == "£": amount = float(word[1:])
-            else: amount = float(word)
+            if word[0] == "£":
+                amount = float(word[1:])
+            else:
+                amount = float(word)
         elif word in CATEGORIES:
             category = word
         elif word in DAYS:
@@ -55,10 +61,10 @@ def newExpense(words):
             elif word == "yesterday":
                 yesterday = date.today() - timedelta(days=1)
                 expenseDate = yesterday.strftime(f"%d/%m/%y")
-    newExpense = expense(amount, category, expenseDate)
-    reply = f"Noted! You spent £{newExpense.amount} on {newExpense.category} on {newExpense.date}"
+    new_expense = Expense(amount, category, expenseDate)
+    reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
     sendMessage(reply)
-                
+
 
 # Converts the string message to a list of lowercase words
 def toWords(sentence):
