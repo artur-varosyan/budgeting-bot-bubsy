@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from messaging import sendMessage, getMessage
+import data
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
@@ -9,10 +10,12 @@ DAYS = {"today", "yesterday"}
 
 # The object representing a single expense
 class Expense:
-    def __init__(self, amount, category, date):
+    def __init__(self, amount, category, date, week, description):
         self.amount = amount
         self.category = category
         self.date = date
+        self.week = week
+        self.description = description
 
 
 def adminTerminal():
@@ -57,11 +60,14 @@ def newExpense(words):
         elif word in DAYS:
             if word == "today":
                 today = date.today()
-                expenseDate = today.strftime('%m/%d/%y')
+                expenseDate = today.strftime("Y-%m-%d")
             elif word == "yesterday":
                 yesterday = date.today() - timedelta(days=1)
-                expenseDate = yesterday.strftime(f"%d/%m/%y")
-    new_expense = Expense(amount, category, expenseDate)
+                expenseDate = yesterday.strftime("%Y-%m-%d")
+    new_expense = Expense(amount, category, expenseDate, 12, "")
+    db = data.connect()
+    db.add_expense(new_expense)
+    db.close()
     reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
     sendMessage(reply)
 
@@ -72,18 +78,22 @@ def toWords(sentence):
     word = ""
     insideAmount = False
     for character in sentence:
-        if character in DIGITS: insideAmount = True
+        if character in DIGITS:
+            insideAmount = True
         if character == ' ' or character == ',':
-            if word != "": words.append(word.lower())
+            if word != "":
+                words.append(word.lower())
             word = ""
             insideAmount = False
-        elif character == '.' and insideAmount == False:
-            if word != "": words.append(word.lower())
+        elif character == '.' and insideAmount is False:
+            if word != "":
+                words.append(word.lower())
             word = ""
             insideAmount = False
         else:
             word = word + character
-    if word != "": words.append(word.lower())
+    if word != "":
+        words.append(word.lower())
     return words
 
 
