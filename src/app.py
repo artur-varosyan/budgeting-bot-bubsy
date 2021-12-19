@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from messaging import sendMessage, getMessage
 import data
 
@@ -63,23 +63,23 @@ def showBudget():
 def newExpense(words):
     amount = 0
     category = ""
-    expenseDate = ""
     for word in words:
         if word[0] == "£" or word[0] in DIGITS:
             # identified amount of expense
             if word[0] == "£":
-                amount = float(word[1:])
+                try:
+                    amount = float(word[1:])
+                except ValueError:
+                    continue
             else:
-                amount = float(word)
+                try:
+                    amount = float(word)
+                except ValueError:
+                    continue
         elif word in CATEGORIES:
             category = word
-        elif word in DAYS:
-            if word == "today":
-                today = date.today()
-                expenseDate = today.strftime("%Y-%m-%d")
-            elif word == "yesterday":
-                yesterday = date.today() - timedelta(days=1)
-                expenseDate = yesterday.strftime("%Y-%m-%d")
+    expenseDate, _ = get_dates(words)
+    expenseDate = expenseDate.strftime("%Y-%m-%d")
     new_expense = Expense(amount, category, expenseDate, 12, "")
     db = data.connect()
     db.add_expense(new_expense)
@@ -118,6 +118,75 @@ def toDict(source):
     for pair in source:
         dest[pair[0].decode()] = pair[1]
     return dest
+
+
+# Able to read a custom date in the dd/mm/yyyy format
+def custom_date(source):
+    found_date = None
+    curr = ""
+    year = None
+    month = None
+    day = None
+    for i in range(len(source)):
+        if source[i] in DIGITS:
+            curr += source[i]
+        if source[i] == '-' or source[i] == '/' or i == len(source)-1:
+            if len(curr) == 4:
+                year = int(curr)
+                curr = ""
+            elif len(curr) == 2 and int(curr) <= 12 and day is not None:
+                month = int(curr)
+                curr = ""
+            elif 1 <= int(curr) <= 31:
+                day = int(curr)
+                curr = ""
+    if day is not None and month is not None and year is not None:
+        found_date = datetime(year=year, month=month, day=day)
+    return found_date
+
+
+def get_dates(source):
+    start = None
+    end = None
+    for word in source:
+        if word == "today":
+            start = date.today()
+            end = start
+            break
+        elif word == "yesterday":
+            start = date.today() - timedelta(days=1)
+            end = start
+            break
+        elif word == "week":
+            i = source.index("week")
+            if i > 0 and source[i - 1] == "this":
+                weekday = int(date.today().strftime("%w"))
+                start = (date.today() - timedelta(days=weekday))
+                end = start + timedelta(days=6)
+            elif i > 0 and (source[i - 1] == "last" or source[i - 1] == "previous"):
+                weekday = int(date.today().strftime("%w"))
+                start = (date.today() - timedelta(days=weekday) - timedelta(weeks=1))
+                end = start + timedelta(days=6)
+            break
+        elif word == "weekend":
+            i = source.index("weekend")
+            weekday = int(date.today().strftime("%w"))
+            if 0 < weekday:
+                start = (date.today() + timedelta(days=(6 - weekday)))
+            else:
+                start = (date.today() - timedelta(days=1))
+                end = start + timedelta(days=1)
+            if i > 0 and (source[i - 1] == "last" or source[i - 1] == "previous"):
+                start -= timedelta(weeks=1)
+                end -= timedelta(weeks=1)
+            break
+        elif '/' in word or '-' in word:
+            start = custom_date(word)
+            i = source.index(word)
+            if i < len(source) - 2 and source[i + 1] == "to":
+                end = custom_date(source[i + 2])
+            break
+    return start, end
 
 
 def main():
