@@ -38,6 +38,25 @@ class DBConnection:
         except Error as e:
             print("Error occurred while adding expense: ", e)
 
+    def get_budget(self):
+        try:
+            sql = """SELECT C.name AS category, B.spend_limit FROM Budget B INNER JOIN Category C ON B.category = C.id"""
+            self.cursor.execute(sql)
+            budget = self.cursor.fetchall()
+            return budget
+        except Error as e:
+            print("Error occurred while getting expense: ", e)
+
+    def get_spending(self, start, end):
+        try:
+            sql = """SELECT C.name AS category, SUM(E.amount) AS spending FROM Expense E INNER JOIN Category C ON E.category = C.id WHERE E.date >= ? AND E.date <= ? GROUP BY (C.name)"""
+            dates = (start, end)
+            self.cursor.execute(sql, dates)
+            spending = self.cursor.fetchall()
+            return spending
+        except Error as e:
+            print("Error occurred while getting spending: ", e)
+
 
 def connect():
     try:

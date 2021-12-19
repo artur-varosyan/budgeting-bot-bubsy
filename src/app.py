@@ -41,7 +41,23 @@ def chatbot():
 
 
 def showBudget():
-    print("show budget")
+    content = f"Sure! \nHere is what you spent this week:"
+    now = date.today()
+    start = now - timedelta(days=int(now.strftime("%w")))
+    end = start + timedelta(days=6)
+    db = data.connect()
+    categories = db.get_categories()
+    budget = db.get_budget()
+    spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+    db.close()
+    budget = toDict(budget)
+    spending = toDict(spending)
+    for category in categories:
+        category = category[0].decode()
+        cat_spending = '{:.2f}'.format(spending.get(category, 0))
+        cat_limit = '{:.2f}'.format(budget.get(category))
+        content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
+    sendMessage(content)
 
 
 def newExpense(words):
@@ -60,7 +76,7 @@ def newExpense(words):
         elif word in DAYS:
             if word == "today":
                 today = date.today()
-                expenseDate = today.strftime("Y-%m-%d")
+                expenseDate = today.strftime("%Y-%m-%d")
             elif word == "yesterday":
                 yesterday = date.today() - timedelta(days=1)
                 expenseDate = yesterday.strftime("%Y-%m-%d")
@@ -95,6 +111,13 @@ def toWords(sentence):
     if word != "":
         words.append(word.lower())
     return words
+
+
+def toDict(source):
+    dest = {}
+    for pair in source:
+        dest[pair[0].decode()] = pair[1]
+    return dest
 
 
 def main():
