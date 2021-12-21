@@ -120,7 +120,7 @@ def toDict(source):
     return dest
 
 
-# Able to read a custom date in the dd/mm/yyyy format
+# Able to read a custom date in the dd/mm/yyyy and dd/mm formats
 def custom_date(source):
     found_date = None
     curr = ""
@@ -130,7 +130,7 @@ def custom_date(source):
     for i in range(len(source)):
         if source[i] in DIGITS:
             curr += source[i]
-        if source[i] == '-' or source[i] == '/' or i == len(source)-1:
+        if source[i] == '-' or source[i] == '/' or i == len(source) - 1:
             if len(curr) == 4:
                 year = int(curr)
                 curr = ""
@@ -140,7 +140,9 @@ def custom_date(source):
             elif 1 <= int(curr) <= 31:
                 day = int(curr)
                 curr = ""
-    if day is not None and month is not None and year is not None:
+    if day is not None and month is not None:
+        if year is None:
+            year = int(datetime.now().strftime("%Y"))
         found_date = datetime(year=year, month=month, day=day)
     return found_date
 
@@ -157,7 +159,7 @@ def get_dates(source):
             start = date.today() - timedelta(days=1)
             end = start
             break
-        elif word == "week":
+        elif word == "week":  # Assume start of the week is Sunday
             i = source.index("week")
             if i > 0 and source[i - 1] == "this":
                 weekday = int(date.today().strftime("%w"))
@@ -168,7 +170,7 @@ def get_dates(source):
                 start = (date.today() - timedelta(days=weekday) - timedelta(weeks=1))
                 end = start + timedelta(days=6)
             break
-        elif word == "weekend":
+        elif word == "weekend":  # Assume start of the weekend is Saturday
             i = source.index("weekend")
             weekday = int(date.today().strftime("%w"))
             if 0 < weekday:
