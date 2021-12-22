@@ -6,6 +6,7 @@ DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
               "toiletries", "subscriptions", "phone", "housing", "other"}
 DAYS = {"today", "yesterday"}
+PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 
 
 # The object representing a single expense
@@ -34,6 +35,8 @@ def chatbot():
             stop = True
         elif "show" in words and "budget" in words or "spending" in words:
             showBudget()
+        elif "how" in words and "much" in words and ("spent" in words or "spend" in words):
+            showSpending(words)
         elif "spent" in words or "paid" in words:
             newExpense(words)
         else:
@@ -57,6 +60,21 @@ def showBudget():
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         cat_limit = '{:.2f}'.format(budget.get(category))
         content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
+    sendMessage(content)
+
+
+def showSpending(words):
+    start, end = get_dates(words)
+    db = data.connect()
+    spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+    categories = db.get_categories()
+    spending = toDict(spending)
+    total = sum(spending.values())
+    content = f"In total you spent £{'{:.2f}'.format(total)}. Here is a breakdown:"
+    for category in categories:
+        category = category[0].decode()
+        cat_spending = '{:.2f}'.format(spending.get(category, 0))
+        content += f"\n - {category}: £{cat_spending}"
     sendMessage(content)
 
 
@@ -96,7 +114,7 @@ def toWords(sentence):
     for character in sentence:
         if character in DIGITS:
             insideAmount = True
-        if character == ' ' or character == ',':
+        if character == ' ' or character == ',' or character == '!' or character == '?':
             if word != "":
                 words.append(word.lower())
             word = ""
@@ -180,7 +198,7 @@ def get_dates(source):
                 end = start + timedelta(days=1)
             if i > 0 and (source[i - 1] == "last" or source[i - 1] == "previous"):
                 start -= timedelta(weeks=1)
-                end -= timedelta(weeks=1)
+                end = start + timedelta(weeks=1)
             break
         elif '/' in word or '-' in word:
             start = custom_date(word)
