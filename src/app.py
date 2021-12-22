@@ -68,6 +68,7 @@ def showSpending(words):
     db = data.connect()
     spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
     categories = db.get_categories()
+    db.close()
     spending = toDict(spending)
     total = sum(spending.values())
     content = f"In total you spent £{'{:.2f}'.format(total)}. Here is a breakdown:"
