@@ -1,6 +1,6 @@
 from datetime import date, timedelta, datetime
 from messaging import sendMessage, getMessage
-import data
+import data as data
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
