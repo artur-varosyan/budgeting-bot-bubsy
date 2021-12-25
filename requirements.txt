@@ -13,7 +13,6 @@ pluggy==1.0.0
 protobuf==3.17.3
 py==1.11.0
 pycairo==1.20.1
-PyGObject==3.42.0
 pyparsing==3.0.6
 pytest==6.2.5
 requests==2.25.1
