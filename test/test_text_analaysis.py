@@ -24,7 +24,7 @@ def test_words():
         target = []
         output = toWords(message)
         assert output == target
-    except AssertionError as e:
+    except AssertionError:
         raise AssertionError(f"PASSED: {message}; EXPECTED {target} RECEIVED {output}")
 
 
@@ -50,7 +50,7 @@ def test_action():
         target = "ADD_EXPENSE"
         output = get_action(words)
         assert output == target
-        words = ["i", "paid", "for", "housing", "today", "It", "was", "450", "pounds"]
+        words = ["i", "paid", "for", "housing", "today", "it", "was", "450", "pounds"]
         target = "ADD_EXPENSE"
         output = get_action(words)
         assert output == target
@@ -58,7 +58,7 @@ def test_action():
         target = "UNKNOWN"
         output = get_action(words)
         assert output == target
-    except AssertionError as e:
+    except AssertionError:
         raise AssertionError(f"PASSED: {words}; EXPECTED {target} RECEIVED {output}")
 
 
@@ -94,5 +94,5 @@ def test_date():
         target = None
         output = get_dates(words)
         assert get_dates(words) == (target, target)
-    except AssertionError as e:
+    except AssertionError:
         raise AssertionError(f"PASSED: {words}; EXPECTED {target} RECEIVED {output}")
