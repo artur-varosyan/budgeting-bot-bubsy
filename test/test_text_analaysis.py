@@ -1,5 +1,65 @@
 from datetime import datetime, date, timedelta
-from src.app import get_dates
+from src.app import get_dates, get_action, toWords
+
+
+def test_words():
+    try:
+        message = "This is a test."
+        target = ["this", "is", "a", "test"]
+        output = toWords(message)
+        assert output == target
+        message = "Show me my budget, please"
+        target = ["show", "me", "my", "budget", "please"]
+        output = toWords(message)
+        assert output == target
+        message = "Not again! I paid £100 for transport!!!"
+        target = ["not", "again", "i", "paid", "£100", "for", "transport"]
+        output = toWords(message)
+        assert output == target
+        message = "How much have I spent from 22/01/2020 to 24/02/2020?"
+        target = ["how", "much", "have", "i", "spent", "from", "22/01/2020", "to", "24/02/2020"]
+        output = toWords(message)
+        assert output == target
+        message = ""
+        target = []
+        output = toWords(message)
+        assert output == target
+    except AssertionError as e:
+        raise AssertionError(f"PASSED: {message}; EXPECTED {target} RECEIVED {output}")
+
+
+def test_action():
+    try:
+        words = ["how", "much", "did", "I", "spend", "today"]
+        target = "SHOW_SPENDING"
+        output = get_action(words)
+        assert output == target
+        words = ["how", "much", "have", "I", "spent", "yesterday"]
+        target = "SHOW_SPENDING"
+        output = get_action(words)
+        assert output == target
+        words = ["show", "me", "my", "budget"]
+        target = "SHOW_BUDGET"
+        output = get_action(words)
+        assert output == target
+        words = ["can", "i", "see", "my", "spending"]
+        target = "SHOW_BUDGET"
+        output = get_action(words)
+        assert output == target
+        words = ["i", "spent", "£99", "on", "groceries", "last", "weekend"]
+        target = "ADD_EXPENSE"
+        output = get_action(words)
+        assert output == target
+        words = ["i", "paid", "for", "housing", "today", "It", "was", "450", "pounds"]
+        target = "ADD_EXPENSE"
+        output = get_action(words)
+        assert output == target
+        words = ["i", "like", "this", "app"]
+        target = "UNKNOWN"
+        output = get_action(words)
+        assert output == target
+    except AssertionError as e:
+        raise AssertionError(f"PASSED: {words}; EXPECTED {target} RECEIVED {output}")
 
 
 def test_date():

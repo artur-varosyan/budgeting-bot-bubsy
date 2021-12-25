@@ -26,24 +26,41 @@ def adminTerminal():
 
 
 def chatbot():
+    actions = {"SHOW_BUDGET": showBudget,
+               "SHOW_SPENDING": showSpending,
+               "ADD_EXPENSE": newExpense,
+               "EXIT": None,
+               "UNKNOWN": unknown_query}
     stop = False
     while not stop:
         message = getMessage()
         words = toWords(message)
-        # Set of actions
-        if "exit" in words:
+        action = get_action(words)
+        if action == "EXIT":
             stop = True
-        elif "show" in words and "budget" in words or "spending" in words:
-            showBudget()
-        elif "how" in words and "much" in words and ("spent" in words or "spend" in words):
-            showSpending(words)
-        elif "spent" in words or "paid" in words:
-            newExpense(words)
         else:
-            sendMessage("Sorry I don't quite understand")
+            actions[action](words)
 
 
-def showBudget():
+def get_action(words):
+    # Set of actions
+    if "exit" in words:
+        return "EXIT"
+    elif "show" in words and "budget" in words or "spending" in words:
+        return "SHOW_BUDGET"
+    elif "how" in words and "much" in words and ("spent" in words or "spend" in words):
+        return "SHOW_SPENDING"
+    elif "spent" in words or "paid" in words:
+        return "ADD_EXPENSE"
+    else:
+        return "UNKNOWN"
+
+
+def unknown_query(words):
+    sendMessage("Sorry I don't quite understand")
+
+
+def showBudget(words):
     content = f"Sure! \nHere is what you spent this week:"
     now = date.today()
     start = now - timedelta(days=int(now.strftime("%w")))
