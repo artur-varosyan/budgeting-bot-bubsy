@@ -1,6 +1,8 @@
+import sys
 from datetime import date, timedelta, datetime
-from messaging import sendMessage, getMessage
-from messaging_telegram import listen
+
+from messaging_terminal import listen as listen_terminal
+from messaging_telegram import listen as listen_telegram
 
 import data as data
 
@@ -9,6 +11,8 @@ CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
               "toiletries", "subscriptions", "phone", "housing", "other"}
 DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
+
+listen = None
 
 
 # The object representing a single expense
@@ -233,6 +237,12 @@ def get_dates(source):
 
 
 def main():
+    args = sys.argv
+    global listen
+    if len(args) > 1 and args[1] == "--terminal":
+        listen = listen_terminal
+    else:
+        listen = listen_telegram
     adminTerminal()
 
 

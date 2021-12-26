@@ -1,3 +1,5 @@
+# A proxy for messaging with the user via telegram
+
 import logging
 
 from telegram import Update, ForceReply
@@ -9,6 +11,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+message_handler = None
 
 
 # Define a few command handlers. These usually take the two arguments update and
