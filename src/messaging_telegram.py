@@ -18,11 +18,15 @@ message_handler = None
 # context.
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
-    user = update.effective_user
-    update.message.reply_markdown_v2(
-        fr'Hi {user.mention_markdown_v2()}\!',
-        reply_markup=ForceReply(selective=True),
-    )
+    passed = check_permissions(update)
+    if not passed:
+        return
+    else:
+        user = update.effective_user
+        update.message.reply_markdown_v2(
+            fr'Hi {user.mention_markdown_v2()} It is nice to meet you\! Send /help to learn how to talk to me 😄\!',
+            reply_markup=ForceReply(selective=True),
+        )
 
 
 def check_permissions(update):
@@ -36,12 +40,23 @@ def check_permissions(update):
 
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
+    passed = check_permissions(update)
+    if not passed:
+        return
+    else:
+        instructions = "Here are some of the thins I can do ✨\n"
+        instructions += "- Record an expense\n"
+        instructions += "- Tell you how much you spent\n"
+        instructions += "- Show you your budget\n"
+        instructions += "\nTry sending me these messages:\n"
+        instructions += "- I paid £2.10 for a public transport ticket yesterday\n"
+        instructions += "- How much did I spend last weekend?\n"
+        instructions += "- Show me my budget\n"
+        update.message.reply_text(instructions)
 
 
 def echo(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
-    print("Chat id=" + str(update.message.chat_id))
     passed = check_permissions(update)
     if not passed:
         return
