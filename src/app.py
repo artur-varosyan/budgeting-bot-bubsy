@@ -41,8 +41,10 @@ def handle_message(message):
                "ADD_EXPENSE": newExpense,
                "EXIT": None,
                "UNKNOWN": unknown_query}
+    print(f"> New Message Received: '{message}'")
     words = toWords(message)
     action = get_action(words)
+    print(f"< Performing {action}")
     if action == "EXIT":
         # TODO: Stop the bot
         print("Now stopping")
@@ -86,6 +88,7 @@ def showBudget(words):
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         cat_limit = '{:.2f}'.format(budget.get(category))
         content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
+    content += immediate_analysis(categories, budget, spending)
     return content
 
 
@@ -103,6 +106,30 @@ def showSpending(words):
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         content += f"\n - {category}: £{cat_spending}"
     return content
+
+
+def immediate_analysis(categories, budget, spending):
+    analysis = "\n"
+    overspent = []
+    for category in categories:
+        category = category[0].decode()
+        cat_budget = budget.get(category, 0)
+        cat_spent = spending.get(category, 0)
+        diff = cat_spent - cat_budget
+        if diff > 0:
+            overspent.append((category, diff))
+    if len(overspent) > 0:
+        text = ""
+        amounts = ""
+        for category in overspent:
+            if text != "":
+                text += ", "
+                amounts += ", "
+            text += category[0]
+            amounts += '£{:.2f}'.format(category[1])
+        analysis += f"\nYou overspent on {text} by {amounts}"
+        analysis += "\nConsider spending less next week"
+    return analysis
 
 
 def newExpense(words):
