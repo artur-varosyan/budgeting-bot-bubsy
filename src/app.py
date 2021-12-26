@@ -1,5 +1,7 @@
 from datetime import date, timedelta, datetime
 from messaging import sendMessage, getMessage
+from messaging_telegram import listen
+
 import data as data
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
@@ -26,20 +28,23 @@ def adminTerminal():
 
 
 def chatbot():
+    listen(handle_message)
+
+
+def handle_message(message):
     actions = {"SHOW_BUDGET": showBudget,
                "SHOW_SPENDING": showSpending,
                "ADD_EXPENSE": newExpense,
                "EXIT": None,
                "UNKNOWN": unknown_query}
-    stop = False
-    while not stop:
-        message = getMessage()
-        words = toWords(message)
-        action = get_action(words)
-        if action == "EXIT":
-            stop = True
-        else:
-            actions[action](words)
+    words = toWords(message)
+    action = get_action(words)
+    if action == "EXIT":
+        # TODO: Stop the bot
+        print("Now stopping")
+    else:
+        reply = actions[action](words)
+    return reply
 
 
 def get_action(words):
@@ -57,7 +62,7 @@ def get_action(words):
 
 
 def unknown_query(words):
-    sendMessage("Sorry I don't quite understand")
+    return "Sorry I don't quite understand"
 
 
 def showBudget(words):
@@ -77,7 +82,7 @@ def showBudget(words):
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         cat_limit = '{:.2f}'.format(budget.get(category))
         content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
-    sendMessage(content)
+    return content
 
 
 def showSpending(words):
@@ -93,7 +98,7 @@ def showSpending(words):
         category = category[0].decode()
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         content += f"\n - {category}: £{cat_spending}"
-    sendMessage(content)
+    return content
 
 
 def newExpense(words):
@@ -121,7 +126,7 @@ def newExpense(words):
     db.add_expense(new_expense)
     db.close()
     reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
-    sendMessage(reply)
+    return reply
 
 
 # Converts the string message to a list of lowercase words
