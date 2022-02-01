@@ -12,6 +12,10 @@ CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
 DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 
+# SPENDING CONSTANTS
+OVER_THE_LIMIT = 1.0
+CLOSE_TO_LIMIT = 0.9
+
 listen = None
 
 
@@ -42,7 +46,7 @@ def handle_message(message):
                "EXIT": None,
                "UNKNOWN": unknown_query}
     print(f"> New Message Received: '{message}'")
-    words = toWords(message)
+    words = to_words(message)
     action = get_action(words)
     print(f"< Performing {action}")
     if action == "EXIT":
@@ -81,14 +85,14 @@ def showBudget(words):
     budget = db.get_budget()
     spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
     db.close()
-    budget = toDict(budget)
-    spending = toDict(spending)
+    budget = to_dict(budget)
+    spending = to_dict(spending)
     for category in categories:
         category = category[0].decode()
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         cat_limit = '{:.2f}'.format(budget.get(category))
         content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
-    content += immediate_analysis(categories, budget, spending)
+    content += budget_analysis(categories, budget, spending)
     return content
 
 
@@ -97,18 +101,20 @@ def showSpending(words):
     db = data.connect()
     spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
     categories = db.get_categories()
+    budget = to_dict(db.get_budget())
     db.close()
-    spending = toDict(spending)
+    spending = to_dict(spending)
     total = sum(spending.values())
     content = f"In total you spent £{'{:.2f}'.format(total)}. Here is a breakdown:"
     for category in categories:
         category = category[0].decode()
         cat_spending = '{:.2f}'.format(spending.get(category, 0))
         content += f"\n - {category}: £{cat_spending}"
+    content += budget_analysis(categories, budget, spending)
     return content
 
 
-def immediate_analysis(categories, budget, spending):
+def budget_analysis(categories, budget, spending):
     analysis = "\n"
     overspent = []
     for category in categories:
@@ -155,13 +161,36 @@ def newExpense(words):
     new_expense = Expense(amount, category, expenseDate, 12, "")
     db = data.connect()
     db.add_expense(new_expense)
+    now = date.today()
+    start = now - timedelta(days=int(now.strftime("%w")))
+    end = start + timedelta(days=6)
+    spending = to_dict(db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")))
+    budget = to_dict(db.get_budget())
+    expense_analysis(spending, budget, new_expense)
     db.close()
     reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
+    reply += expense_analysis(spending, budget, new_expense)
     return reply
 
 
+def expense_analysis(spending: dict, budget: dict, expense: Expense):
+    analysis = ""
+    category = expense.category
+    limit = budget.get(category, 0)
+    spent = spending.get(category, 0)
+    proportion = spent/limit # FIXME: Potential division by zero
+    if proportion > OVER_THE_LIMIT:
+        amount = '£{:.2f}'.format(spent - limit)
+        analysis += f"\nYou overspent on {category} by {amount}!"
+    elif proportion > CLOSE_TO_LIMIT:
+        remaining = '£{:.2f}'.format(limit - spent)
+        analysis += f"\nYou have reached {round(proportion*100)}% of your spending limit on {category}! " \
+                    f"You have {remaining} left for this week! "
+    return analysis
+
+
 # Converts the string message to a list of lowercase words
-def toWords(sentence):
+def to_words(sentence):
     words = []
     word = ""
     insideAmount = False
@@ -185,7 +214,7 @@ def toWords(sentence):
     return words
 
 
-def toDict(source):
+def to_dict(source):
     dest = {}
     for pair in source:
         dest[pair[0].decode()] = pair[1]

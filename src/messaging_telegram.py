@@ -21,6 +21,7 @@ my_bot = None
 chat_id = None
 private_bot = False
 
+
 # Define a few command handlers. These usually take the two arguments update and
 # context.
 def start(update: Update, context: CallbackContext) -> None:
@@ -101,6 +102,7 @@ def init_bot():
         private_bot = config["privateBot"]
     except Exception as e:
         raise RuntimeError("The configuration file 'config.json' is missing or contains errors")
+
 
 def listen(handler):
     """Start the bot."""
