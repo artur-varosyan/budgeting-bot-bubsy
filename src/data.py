@@ -30,9 +30,9 @@ class DBConnection:
 
     def add_expense(self, expense):
         try:
-            sql_add = """INSERT INTO Expense (amount, category, date, week, description) VALUES (?, ?, ?, ?, ?)"""
+            sql_add = """INSERT INTO Expense (amount, category, date, description, recurring) VALUES (?, ?, ?, ?, ?)"""
             category_id = self.get_category(expense.category)
-            details = (expense.amount, category_id, expense.date, expense.week, expense.description)
+            details = (expense.amount, category_id, expense.date, expense.description, expense.recurring)
             self.cursor.execute(sql_add, details)
             self.connection.commit()
         except Error as e:

@@ -1,4 +1,5 @@
 import sys
+from functools import partial
 from datetime import date, timedelta, datetime
 
 from messaging_terminal import listen as listen_terminal
@@ -7,8 +8,6 @@ from messaging_telegram import listen as listen_telegram
 import data as data
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
-CATEGORIES = {"groceries", "shopping", "transport", "entertainment",
-              "toiletries", "subscriptions", "phone", "housing", "other"}
 DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 
@@ -16,17 +15,15 @@ PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 OVER_THE_LIMIT = 1.0
 CLOSE_TO_LIMIT = 0.9
 
-listen = None
-
 
 # The object representing a single expense
 class Expense:
-    def __init__(self, amount, category, date, week, description):
+    def __init__(self, amount: float, category: str, date: str, description: str, recurring: bool):
         self.amount = amount
         self.category = category
         self.date = date
-        self.week = week
         self.description = description
+        self.recurring = recurring
 
 
 class Bubsy:
@@ -45,6 +42,7 @@ class Bubsy:
         actions = {"SHOW_BUDGET": self.show_budget,
                    "SHOW_SPENDING": self.show_spending,
                    "ADD_EXPENSE": self.new_expense,
+                   "NEW_BUDGET": self.new_budget,
                    "EXIT": None,
                    "UNKNOWN": self.unknown_query}
         print(f"> New Message Received: '{message}'")
@@ -69,6 +67,8 @@ class Bubsy:
             return "SHOW_SPENDING"
         elif "spent" in words or "paid" in words:
             return "ADD_EXPENSE"
+        elif ("update" in words or "change" in words or "new" in words) and "budget" in words:
+            return "NEW_BUDGET"
         else:
             return "UNKNOWN"
 
@@ -97,7 +97,6 @@ class Bubsy:
         db = data.connect()
         spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
         categories = db.get_categories()
-        budget = Helper.to_dict(db.get_budget())
         db.close()
         spending = Helper.to_dict(spending)
         total = sum(spending.values())
@@ -106,7 +105,6 @@ class Bubsy:
             category = category[0].decode()
             cat_spending = '{:.2f}'.format(spending.get(category, 0))
             content += f"\n - {category}: £{cat_spending}"
-        content += self.budget_analysis(categories, budget, spending)
         return content
 
     def budget_analysis(self, categories: dict, budget: dict, spending: dict) -> str:
@@ -134,6 +132,11 @@ class Bubsy:
 
     def new_expense(self, words: [str]) -> str:
         amount = 0
+        db = data.connect()
+        # convert list of tuples of byte arrays to a set of strings
+        categories = set(map(lambda c: c[0].decode(), db.get_categories()))
+        print(type(categories))
+        print(categories)
         category = ""
         for word in words:
             if word[0] == "£" or word[0] in DIGITS:
@@ -148,12 +151,11 @@ class Bubsy:
                         amount = float(word)
                     except ValueError:
                         continue
-            elif word in CATEGORIES:
+            elif word in categories:
                 category = word
         expenseDate, _ = Helper.get_dates(words)
         expenseDate = expenseDate.strftime("%Y-%m-%d")
-        new_expense = Expense(amount, category, expenseDate, 12, "")
-        db = data.connect()
+        new_expense = Expense(amount, category, expenseDate, "", False)
         db.add_expense(new_expense)
         now = date.today()
         start = now - timedelta(days=int(now.strftime("%w")))
@@ -164,6 +166,24 @@ class Bubsy:
         db.close()
         reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
         reply += self.expense_analysis(spending, budget, new_expense)
+        return reply
+
+    def new_budget(self, words: [str]) -> str:
+        reply = "Sure I can help you to update your budget\n"
+        reply += "Here is what your existing budget looks like:\n"
+        old_budget = self.show_budget(words)
+        old_budget = "\n".join(old_budget.split("\n")[2:-2])
+        print(old_budget)
+        reply += old_budget
+        reply += "Which category would you like to change?"
+        # TODO:
+        # 1. Update get_budget() to solely return the limits and not the spending
+        # 2. Add synchronisation - when an action is identified, start a new thread
+        #    - Sleep this thread while awaiting for a response using a conditional variable
+        #    - Create an idle/busy variable
+        #    - When a reply comes in, wake up the thread and continue
+        #    - Add an option to escape the sequence
+        #    - (potentially) Add support for multiple separate messages, e.g. by returning a list of strings
         return reply
 
     def expense_analysis(self, spending: dict, budget: dict, expense: Expense) -> str:
@@ -292,11 +312,16 @@ class Helper:
 
 def main():
     args = sys.argv
-    global listen
-    if len(args) > 1 and args[1] == "--terminal":
+    listen = None
+    if len(args) == 2 and args[1] == "--terminal":
         listen = listen_terminal
-    else:
+    elif len(args) == 1 or (len(args) == 2 and args[1] == "--telegram"):
         listen = listen_telegram
+    else:
+        print("Error: Unknown arguments passed. Correct usage:\n "
+              "--terminal  for terminal communication\n "
+              "--telegram  for telegram bot communication (default)")
+        return
     bot = Bubsy(listen)
     bot.adminTerminal()
 
