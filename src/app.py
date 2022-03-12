@@ -12,6 +12,7 @@ import data as data
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
+POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
 
 # SPENDING CONSTANTS
 OVER_THE_LIMIT = 1.0
@@ -37,7 +38,7 @@ class Bubsy:
         self.lock = threading.Lock()
         self.cond_var_handler = threading.Condition(self.lock)
         self.cond_var_action = threading.Condition(self.lock)
-        self.incoming_message: str = ""
+        self.incoming_message: [str] = ""
         self.reply: [str] = ""
         self.last_action = ""
         # Chosen communication method
@@ -58,6 +59,7 @@ class Bubsy:
                    "NEW_BUDGET": self.new_budget,
                    "EXIT": None,
                    "UNKNOWN": self.unknown_query}
+        print(threading.active_count())
         print(f"> New Message Received: '{message}'")
         words = Helper.to_words(message)
         action = self.get_action(words)
@@ -193,20 +195,10 @@ class Bubsy:
         categories = set(map(lambda c: c[0].decode(), db.get_categories()))
         category = ""
         for word in words:
-            if word[0] == "£" or word[0] in DIGITS:
-                # identified amount of expense
-                if word[0] == "£":
-                    try:
-                        amount = float(word[1:])
-                    except ValueError:
-                        continue
-                else:
-                    try:
-                        amount = float(word)
-                    except ValueError:
-                        continue
-            elif word in categories:
+            if word in categories:
                 category = word
+                break
+        amount = Helper.get_amount(words)
         expenseDate, _ = Helper.get_dates(words)
         expenseDate = expenseDate.strftime("%Y-%m-%d")
         new_expense = Expense(amount, category, expenseDate, "", False)
@@ -227,13 +219,13 @@ class Bubsy:
         return
 
     def new_budget(self):
+        curr = datetime.now().time()
         reply = ["Sure I can help you to update your budget\n"]
         content = "Here is what your existing budget looks like:"
         db = data.connect()
         budget = Helper.to_dict(db.get_budget())
-        categories = db.get_categories()
+        categories = set(map(lambda c: c[0].decode(), db.get_categories()))
         for category in categories:
-            category = category[0].decode()
             cat_limit = '{:.2f}'.format(budget.get(category))
             content += f"\n- {category}: £{cat_limit}"
         reply.append(content)
@@ -247,13 +239,67 @@ class Bubsy:
         while not self.reply_received:
             logging.info("@ Action will wait")
             self.cond_var_action.wait()
+            logging.info("TIME")
+            logging.info(curr)
+        logging.info("@ Action stopped waiting")
+        words = self.incoming_message
+        updated_categories = dict()
+        for word in words:
+            logging.info(word)
+            if word in categories:
+                updated_categories[word] = 0
+
+        logging.info(updated_categories.keys())
+        content = "Great! Let's take this one step at a time."
+        for category in updated_categories.keys():
+            content += f" What would you like to change your budget for {category} to?"
+            self.reply = [content]
+            self.reply_received = False
+            self.awaiting_reply = True
+            self.cond_var_handler.notifyAll()
+            while not self.reply_received:
+                logging.info("@ Action will wait")
+                self.cond_var_action.wait()
+                logging.info("TIME")
+                logging.info(curr)
+            logging.info("@ Action stopped waiting")
+            self.awaiting_reply = False
+            words: [str] = self.incoming_message
+            amount = Helper.get_amount(words)
+            updated_categories[category] = amount
+            content = '£{:.2f}'.format(amount) + f" on {category}, noted!"
+
+        reply = [content]
+        content = "Overall your new budget will look as follows:\n"
+        for category in categories:
+            if category in updated_categories.keys():
+                old_limit = '{:.2f}'.format(budget.get(category))
+                cat_limit = '{:.2f}'.format(updated_categories[category])
+                content += f"\n* {category}: from £{old_limit} to £{cat_limit}"
+            else:
+                cat_limit = '{:.2f}'.format(budget.get(category))
+                content += f"\n- {category}: £{cat_limit}"
+
+        reply.append(content)
+        reply.append("Does that look right?")
+        self.reply = reply
+        self.awaiting_reply = True
+        self.reply_received = False
+        self.cond_var_handler.notifyAll()
+        while not self.reply_received:
+            logging.info("@ Action will wait")
+            self.cond_var_action.wait()
+            logging.info("TIME")
+            logging.info(curr)
         logging.info("@ Action stopped waiting")
         self.awaiting_reply = False
-        reply = ["Intercepted a message!"]
-        self.reply = reply
+        words = self.incoming_message
+        # TODO: Check for confirmation by the user
+        #       restart the process if not
+        # TODO: Update the budget in the database from next week?
+        self.reply = ["End of sequence"]
         self.cond_var_handler.notifyAll()
         self.lock.release()
-        logging.info("@ Action released lock")
         # TODO:
         # 1. Update get_budget() to solely return the limits and not the spending
         # 2. Add synchronisation - when an action is identified, start a new thread
@@ -389,6 +435,23 @@ class Helper:
                     end = Helper.custom_date(source[i + 2])
                 break
         return start, end
+
+    @staticmethod
+    def get_amount(words: [str]) -> float:
+        for word in words:
+            if word[0] == "£" or word[0] in DIGITS:
+                # identified amount of expense
+                if word[0] == "£":
+                    try:
+                        amount = float(word[1:])
+                    except ValueError:
+                        continue
+                else:
+                    try:
+                        amount = float(word)
+                    except ValueError:
+                        continue
+        return amount
 
 
 def main():
