@@ -32,13 +32,13 @@ class Bubsy:
 
     def __init__(self, communication_method):
         # Threading objects
-        self.awaiting_reply = False
-        self.reply_received = False
+        self.awaiting_reply: bool = False
+        self.reply_received: bool = False
         self.lock = threading.Lock()
         self.cond_var_handler = threading.Condition(self.lock)
         self.cond_var_action = threading.Condition(self.lock)
         self.incoming_message: str = ""
-        self.reply: str = ""
+        self.reply: [str] = ""
         self.last_action = ""
         # Chosen communication method
         self.communication_method = communication_method
@@ -62,8 +62,9 @@ class Bubsy:
         words = Helper.to_words(message)
         action = self.get_action(words)
         if action == "EXIT":
-            # TODO: Stop the bot
-            print("Now stopping")
+            # TODO: Only works when in terminal mode
+            print("Exiting. Program stopped by user")
+            sys.exit(0)
         else:
             """
             if (thread is waiting for reply):
@@ -86,7 +87,7 @@ class Bubsy:
             else:
                 print(f"< Performing {action}")
                 logging.info("Handler started a new thread")
-                action_thread = threading.Thread(target=actions[action])
+                action_thread = threading.Thread(target=actions[action], daemon=True)
                 action_thread.start()
             logging.info("Handler waiting")
             self.cond_var_handler.wait()
@@ -116,6 +117,7 @@ class Bubsy:
             return "UNKNOWN"
 
     def show_budget(self):
+        reply = []
         content = f"Sure! \nHere is what you spent this week:"
         now = date.today()
         start = now - timedelta(days=int(now.strftime("%w")))
@@ -132,9 +134,10 @@ class Bubsy:
             cat_spending = '{:.2f}'.format(spending.get(category, 0))
             cat_limit = '{:.2f}'.format(budget.get(category))
             content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
-        content += self.budget_analysis(categories, budget, spending)
+        reply.append(content)
+        reply.append(self.budget_analysis(categories, budget, spending))
         self.lock.acquire()
-        self.reply = content
+        self.reply = reply
         self.cond_var_handler.notifyAll()
         self.lock.release()
         return
@@ -154,13 +157,13 @@ class Bubsy:
             cat_spending = '{:.2f}'.format(spending.get(category, 0))
             content += f"\n - {category}: £{cat_spending}"
         self.lock.acquire()
-        self.reply = content
+        self.reply = [content]
         self.cond_var_handler.notifyAll()
         self.lock.release()
         return
 
     def budget_analysis(self, categories: dict, budget: dict, spending: dict) -> str:
-        analysis = "\n"
+        analysis = ""
         overspent = []
         for category in categories:
             category = category[0].decode()
@@ -178,7 +181,7 @@ class Bubsy:
                     amounts += ", "
                 text += category[0]
                 amounts += '£{:.2f}'.format(category[1])
-            analysis += f"\nYou overspent on {text} by {amounts}"
+            analysis += f"You overspent on {text} by {amounts}"
             analysis += "\nConsider spending less next week"
         return analysis
 
@@ -188,8 +191,6 @@ class Bubsy:
         db = data.connect()
         # convert list of tuples of byte arrays to a set of strings
         categories = set(map(lambda c: c[0].decode(), db.get_categories()))
-        print(type(categories))
-        print(categories)
         category = ""
         for word in words:
             if word[0] == "£" or word[0] in DIGITS:
@@ -217,8 +218,8 @@ class Bubsy:
         budget = Helper.to_dict(db.get_budget())
         self.expense_analysis(spending, budget, new_expense)
         db.close()
-        reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
-        reply += self.expense_analysis(spending, budget, new_expense)
+        reply = [f"Noted! You spent {'£{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
+        reply.append(self.expense_analysis(spending, budget, new_expense))
         self.lock.acquire()
         self.reply = reply
         self.cond_var_handler.notifyAll()
@@ -226,16 +227,17 @@ class Bubsy:
         return
 
     def new_budget(self):
-        reply = "Sure I can help you to update your budget\n"
-        reply += "Here is what your existing budget looks like:\n"
+        reply = ["Sure I can help you to update your budget\n"]
+        content = "Here is what your existing budget looks like:"
         db = data.connect()
         budget = Helper.to_dict(db.get_budget())
         categories = db.get_categories()
         for category in categories:
             category = category[0].decode()
             cat_limit = '{:.2f}'.format(budget.get(category))
-            reply += f"- {category}: £{cat_limit}\n"
-        reply += "Which categories would you like to change?"
+            content += f"\n- {category}: £{cat_limit}"
+        reply.append(content)
+        reply.append("Which categories would you like to change?")
         self.lock.acquire()
         logging.info("@ Action acquires lock")
         self.reply = reply
@@ -247,7 +249,7 @@ class Bubsy:
             self.cond_var_action.wait()
         logging.info("@ Action stopped waiting")
         self.awaiting_reply = False
-        reply = "Intercepted a message!"
+        reply = ["Intercepted a message!"]
         self.reply = reply
         self.cond_var_handler.notifyAll()
         self.lock.release()
@@ -270,7 +272,7 @@ class Bubsy:
         proportion = spent / limit  # FIXME: Potential division by zero
         if proportion > OVER_THE_LIMIT:
             amount = '£{:.2f}'.format(spent - limit)
-            analysis += f"\nYou overspent on {category} by {amount}!"
+            analysis += f"You overspent on {category} by {amount}!"
         elif proportion > CLOSE_TO_LIMIT:
             remaining = '£{:.2f}'.format(limit - spent)
             analysis += f"\nYou have reached {round(proportion * 100)}% of your spending limit on {category}! " \
@@ -279,7 +281,7 @@ class Bubsy:
 
     def unknown_query(self):
         self.lock.acquire()
-        self.reply = "Sorry I don't quite understand"
+        self.reply = ["Sorry I don't quite understand"]
         self.cond_var_handler.notifyAll()
         self.lock.release()
 

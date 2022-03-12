@@ -45,7 +45,6 @@ def check_permissions(update):
     if private_bot == False:
         return True
     else:
-        print("private")
         this_chat_id = update.message.chat_id
         global chat_id
         if this_chat_id == chat_id:
@@ -70,8 +69,6 @@ def help_command(update: Update, context: CallbackContext) -> None:
         instructions += "- How much did I spend last weekend?\n"
         instructions += "- Show me my budget\n"
         update.message.reply_text(instructions)
-        sleep(30)
-        update.message.reply_text("test")
 
 
 def incoming_message(update: Update, context: CallbackContext) -> None:
@@ -80,8 +77,9 @@ def incoming_message(update: Update, context: CallbackContext) -> None:
     if not passed:
         return
     else:
-        reply = message_handler(update.message.text)
-        update.message.reply_text(reply)
+        replies: [str] = message_handler(update.message.text)
+        for reply in replies:
+            update.message.reply_text(reply)
 
 
 def send_message(message):

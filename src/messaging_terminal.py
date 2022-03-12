@@ -3,8 +3,9 @@
 def listen(handler):
     while True:
         message = getMessage()
-        reply = handler(message)
-        sendMessage(reply)
+        replies: [str] = handler(message)
+        for reply in replies:
+            sendMessage(reply)
 
 
 def getMessage():
