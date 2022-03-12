@@ -1,4 +1,6 @@
 import sys
+import threading
+import logging
 from functools import partial
 from datetime import date, timedelta, datetime
 
@@ -27,7 +29,18 @@ class Expense:
 
 
 class Bubsy:
+
     def __init__(self, communication_method):
+        # Threading objects
+        self.awaiting_reply = False
+        self.reply_received = False
+        self.lock = threading.Lock()
+        self.cond_var_handler = threading.Condition(self.lock)
+        self.cond_var_action = threading.Condition(self.lock)
+        self.incoming_message: str = ""
+        self.reply: str = ""
+        self.last_action = ""
+        # Chosen communication method
         self.communication_method = communication_method
 
     def adminTerminal(self):
@@ -48,12 +61,42 @@ class Bubsy:
         print(f"> New Message Received: '{message}'")
         words = Helper.to_words(message)
         action = self.get_action(words)
-        print(f"< Performing {action}")
         if action == "EXIT":
             # TODO: Stop the bot
             print("Now stopping")
         else:
-            reply = actions[action](words)
+            """
+            if (thread is waiting for reply):
+                set self.incoming to the new message
+                increase the semaphore
+            else:
+                start a new thread
+            wait on the thread to be finished
+            set reply to self.reply
+            """
+            self.lock.acquire()
+            logging.info("Handler acquired lock")
+            self.incoming_message = words
+            if self.awaiting_reply:
+                print(f"< Continuing {self.last_action}")
+                logging.info("Handler identified waiting thread")
+                self.reply_received = True
+                self.cond_var_action.notifyAll()
+                logging.info("Handler notified waiting thread")
+            else:
+                print(f"< Performing {action}")
+                logging.info("Handler started a new thread")
+                action_thread = threading.Thread(target=actions[action])
+                action_thread.start()
+            logging.info("Handler waiting")
+            self.cond_var_handler.wait()
+            logging.info("Handler returns")
+            self.reply_received = False
+            reply = self.reply
+            self.lock.release()
+            logging.info("Handler releases lock")
+            #reply = actions[action](words)
+        self.last_action = action
         return reply
 
     @staticmethod
@@ -72,7 +115,7 @@ class Bubsy:
         else:
             return "UNKNOWN"
 
-    def show_budget(self, words: [str]) -> str:
+    def show_budget(self):
         content = f"Sure! \nHere is what you spent this week:"
         now = date.today()
         start = now - timedelta(days=int(now.strftime("%w")))
@@ -90,9 +133,14 @@ class Bubsy:
             cat_limit = '{:.2f}'.format(budget.get(category))
             content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
         content += self.budget_analysis(categories, budget, spending)
-        return content
+        self.lock.acquire()
+        self.reply = content
+        self.cond_var_handler.notifyAll()
+        self.lock.release()
+        return
 
-    def show_spending(self, words: [str]) -> str:
+    def show_spending(self):
+        words = self.incoming_message
         start, end = Helper.get_dates(words)
         db = data.connect()
         spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
@@ -105,7 +153,11 @@ class Bubsy:
             category = category[0].decode()
             cat_spending = '{:.2f}'.format(spending.get(category, 0))
             content += f"\n - {category}: £{cat_spending}"
-        return content
+        self.lock.acquire()
+        self.reply = content
+        self.cond_var_handler.notifyAll()
+        self.lock.release()
+        return
 
     def budget_analysis(self, categories: dict, budget: dict, spending: dict) -> str:
         analysis = "\n"
@@ -130,7 +182,8 @@ class Bubsy:
             analysis += "\nConsider spending less next week"
         return analysis
 
-    def new_expense(self, words: [str]) -> str:
+    def new_expense(self):
+        words = self.incoming_message
         amount = 0
         db = data.connect()
         # convert list of tuples of byte arrays to a set of strings
@@ -166,16 +219,39 @@ class Bubsy:
         db.close()
         reply = f"Noted! You spent £{new_expense.amount} on {new_expense.category} on {new_expense.date}"
         reply += self.expense_analysis(spending, budget, new_expense)
-        return reply
+        self.lock.acquire()
+        self.reply = reply
+        self.cond_var_handler.notifyAll()
+        self.lock.release()
+        return
 
-    def new_budget(self, words: [str]) -> str:
+    def new_budget(self):
         reply = "Sure I can help you to update your budget\n"
         reply += "Here is what your existing budget looks like:\n"
-        old_budget = self.show_budget(words)
-        old_budget = "\n".join(old_budget.split("\n")[2:-2])
-        print(old_budget)
-        reply += old_budget
-        reply += "Which category would you like to change?"
+        db = data.connect()
+        budget = Helper.to_dict(db.get_budget())
+        categories = db.get_categories()
+        for category in categories:
+            category = category[0].decode()
+            cat_limit = '{:.2f}'.format(budget.get(category))
+            reply += f"- {category}: £{cat_limit}\n"
+        reply += "Which categories would you like to change?"
+        self.lock.acquire()
+        logging.info("@ Action acquires lock")
+        self.reply = reply
+        self.awaiting_reply = True
+        self.cond_var_handler.notifyAll()
+        logging.info("@ Action notifies handler")
+        while not self.reply_received:
+            logging.info("@ Action will wait")
+            self.cond_var_action.wait()
+        logging.info("@ Action stopped waiting")
+        self.awaiting_reply = False
+        reply = "Intercepted a message!"
+        self.reply = reply
+        self.cond_var_handler.notifyAll()
+        self.lock.release()
+        logging.info("@ Action released lock")
         # TODO:
         # 1. Update get_budget() to solely return the limits and not the spending
         # 2. Add synchronisation - when an action is identified, start a new thread
@@ -184,7 +260,7 @@ class Bubsy:
         #    - When a reply comes in, wake up the thread and continue
         #    - Add an option to escape the sequence
         #    - (potentially) Add support for multiple separate messages, e.g. by returning a list of strings
-        return reply
+        return
 
     def expense_analysis(self, spending: dict, budget: dict, expense: Expense) -> str:
         analysis = ""
@@ -201,8 +277,11 @@ class Bubsy:
                         f"You have {remaining} left for this week! "
         return analysis
 
-    def unknown_query(self, words: [str]) -> str:
-        return "Sorry I don't quite understand"
+    def unknown_query(self):
+        self.lock.acquire()
+        self.reply = "Sorry I don't quite understand"
+        self.cond_var_handler.notifyAll()
+        self.lock.release()
 
 
 class Helper:
