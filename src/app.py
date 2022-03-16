@@ -137,7 +137,8 @@ class Bubsy:
             cat_limit = '{:.2f}'.format(budget.get(category))
             content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
         reply.append(content)
-        reply.append(self.budget_analysis(categories, budget, spending))
+        analysis = self.budget_analysis(categories, budget, spending)
+        if analysis != "": reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
         self.cond_var_handler.notifyAll()
@@ -211,7 +212,8 @@ class Bubsy:
         self.expense_analysis(spending, budget, new_expense)
         db.close()
         reply = [f"Noted! You spent {'£{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
-        reply.append(self.expense_analysis(spending, budget, new_expense))
+        analysis = self.expense_analysis(spending, budget, new_expense)
+        if analysis != "": reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
         self.cond_var_handler.notifyAll()
