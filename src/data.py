@@ -1,5 +1,6 @@
 import mysql.connector
 from mysql.connector import Error
+from json import load
 
 
 class DBConnection:
@@ -60,7 +61,12 @@ class DBConnection:
 
 def connect():
     try:
-        connection = mysql.connector.connect(host='localhost', database='budgetingbot_test', user='budgeting_bot')
+        with open("config.json") as src_file:
+            config = load(src_file)
+            host = config["dbHost"]
+            db_name = config["dbName"]
+            user = config["dbUser"]
+        connection = mysql.connector.connect(host=host, database=db_name, user=user)
         if connection.is_connected():
             cursor = connection.cursor(prepared=True)
             cursor.execute("select database();")

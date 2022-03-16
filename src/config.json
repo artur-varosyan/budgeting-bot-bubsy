@@ -1,4 +1,7 @@
 {
+    "dbHost": "localhost",
+    "dbName": "budgetingbot_test",
+    "dbUser": "budgeting_bot",
     "token": "5066423723:AAGBJddhgS8T6URtA6jRjMJjvLabKikJeak",
     "privateBot": true,
     "chatId": 5079203337
