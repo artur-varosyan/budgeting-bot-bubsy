@@ -84,7 +84,7 @@ class Bubsy:
                 print(f"< Continuing {self.last_action}")
                 logging.info("Handler identified waiting thread")
                 self.reply_received = True
-                self.cond_var_action.notifyAll()
+                self.cond_var_action.notify_all()
                 logging.info("Handler notified waiting thread")
             else:
                 print(f"< Performing {action}")
@@ -98,7 +98,6 @@ class Bubsy:
             reply = self.reply
             self.lock.release()
             logging.info("Handler releases lock")
-            #reply = actions[action](words)
         self.last_action = action
         return reply
 
@@ -126,6 +125,7 @@ class Bubsy:
         end = start + timedelta(days=6)
         db = data.connect()
         categories = db.get_categories()
+        print(categories)
         budget = db.get_budget()
         spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
         db.close()
@@ -141,7 +141,7 @@ class Bubsy:
         if analysis != "": reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
-        self.cond_var_handler.notifyAll()
+        self.cond_var_handler.notify_all()
         self.lock.release()
         return
 
@@ -161,7 +161,7 @@ class Bubsy:
             content += f"\n - {category}: £{cat_spending}"
         self.lock.acquire()
         self.reply = [content]
-        self.cond_var_handler.notifyAll()
+        self.cond_var_handler.notify_all()
         self.lock.release()
         return
 
@@ -216,92 +216,64 @@ class Bubsy:
         if analysis != "": reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
-        self.cond_var_handler.notifyAll()
+        self.cond_var_handler.notify_all()
         self.lock.release()
         return
 
     def new_budget(self):
-        curr = datetime.now().time()
-        reply = ["Sure I can help you to update your budget\n"]
-        content = "Here is what your existing budget looks like:"
         db = data.connect()
         budget = Helper.to_dict(db.get_budget())
         categories = set(map(lambda c: c[0].decode(), db.get_categories()))
+
+        # Show existing budget
+        reply = ["Sure I can help you to update your budget\n"]
+        content = "Here is what your existing budget looks like:"
         for category in categories:
             cat_limit = '{:.2f}'.format(budget.get(category))
             content += f"\n- {category}: £{cat_limit}"
         reply.append(content)
-        reply.append("Which categories would you like to change?")
+
         self.lock.acquire()
-        logging.info("@ Action acquires lock")
-        self.reply = reply
-        self.awaiting_reply = True
-        self.cond_var_handler.notifyAll()
-        logging.info("@ Action notifies handler")
-        while not self.reply_received:
-            logging.info("@ Action will wait")
-            self.cond_var_action.wait()
-            logging.info("TIME")
-            logging.info(curr)
-        logging.info("@ Action stopped waiting")
-        words = self.incoming_message
-        updated_categories = dict()
-        for word in words:
-            logging.info(word)
-            if word in categories:
-                updated_categories[word] = 0
+        satisfied = False
+        while not satisfied:
+            # Get the categories to be changed
+            reply.append("Which categories would you like to change?")
 
-        logging.info(updated_categories.keys())
-        content = "Great! Let's take this one step at a time."
-        for category in updated_categories.keys():
-            content += f" What would you like to change your budget for {category} to?"
-            self.reply = [content]
-            self.reply_received = False
-            self.awaiting_reply = True
-            self.cond_var_handler.notifyAll()
-            while not self.reply_received:
-                logging.info("@ Action will wait")
-                self.cond_var_action.wait()
-                logging.info("TIME")
-                logging.info(curr)
-            logging.info("@ Action stopped waiting")
-            self.awaiting_reply = False
-            words: [str] = self.incoming_message
-            amount = Helper.get_amount(words)
-            updated_categories[category] = amount
-            content = '£{:.2f}'.format(amount) + f" on {category}, noted!"
+            self.reply = reply
+            self.wait_for_response()
+            words = self.incoming_message
 
-        reply = [content]
-        content = "Overall your new budget will look as follows:\n"
-        for category in categories:
-            if category in updated_categories.keys():
-                old_limit = '{:.2f}'.format(budget.get(category))
-                cat_limit = '{:.2f}'.format(updated_categories[category])
-                content += f"\n* {category}: from £{old_limit} to £{cat_limit}"
-            else:
-                cat_limit = '{:.2f}'.format(budget.get(category))
-                content += f"\n- {category}: £{cat_limit}"
+            # Initialise the dictionary of changed categories
+            updated_categories = dict()
+            for word in words:
+                logging.info(word)
+                if word in categories:
+                    updated_categories[word] = 0
 
-        reply.append(content)
-        reply.append("Does that look right?")
-        self.reply = reply
-        self.awaiting_reply = True
-        self.reply_received = False
-        self.cond_var_handler.notifyAll()
-        while not self.reply_received:
-            logging.info("@ Action will wait")
-            self.cond_var_action.wait()
-            logging.info("TIME")
-            logging.info(curr)
-        logging.info("@ Action stopped waiting")
-        self.awaiting_reply = False
-        words = self.incoming_message
-        # TODO: Check for confirmation by the user
-        #       restart the process if not
-        # TODO: Update the budget in the database from next week?
-        self.reply = ["End of sequence"]
-        self.cond_var_handler.notifyAll()
+            logging.info(updated_categories.keys())
+            content = "Great! Let's take this one step at a time."
+
+            # Ask the user for new budget for each category mentioned
+            content = self.set_category_budget(content, updated_categories)
+            reply = [content]
+
+            # Summarise the new budget
+            content = self.summarise_budget_change(categories, updated_categories, budget)
+            reply.append(content)
+            reply.append("Does that look right?")
+
+            self.reply = reply
+            self.wait_for_response()
+            words = self.incoming_message
+
+            # If positive response, continue
+            satisfied = any(map(lambda x: x in POSITIVE_RESPONSE, words))
+            if not satisfied: reply = ["Okay, let's do this again."]
+
+        self.reply = ["Great! Your budget has been changed"]
+        self.cond_var_handler.notify_all()
         self.lock.release()
+
         # TODO:
         # 1. Update get_budget() to solely return the limits and not the spending
         # 2. Add synchronisation - when an action is identified, start a new thread
@@ -311,6 +283,29 @@ class Bubsy:
         #    - Add an option to escape the sequence
         #    - (potentially) Add support for multiple separate messages, e.g. by returning a list of strings
         return
+
+    def set_category_budget(self, content, updated_categories):
+        for category in updated_categories.keys():
+            content += f" What would you like to change your budget for {category} to?"
+            self.reply = [content]
+            self.wait_for_response()
+            words: [str] = self.incoming_message
+            amount = Helper.get_amount(words)
+            updated_categories[category] = amount
+            content = '£{:.2f}'.format(amount) + f" on {category}, noted!"
+        return content
+
+    def summarise_budget_change(self, categories, updated_categories, budget):
+        content = "Overall your new budget will look as follows:\n"
+        for category in categories:
+            if category in updated_categories.keys():
+                old_limit = '{:.2f}'.format(budget.get(category))
+                cat_limit = '{:.2f}'.format(updated_categories[category])
+                content += f"\n* {category}: from £{old_limit} to £{cat_limit}"
+            else:
+                cat_limit = '{:.2f}'.format(budget.get(category))
+                content += f"\n- {category}: £{cat_limit}"
+        return content
 
     def expense_analysis(self, spending: dict, budget: dict, expense: Expense) -> str:
         analysis = ""
@@ -330,8 +325,20 @@ class Bubsy:
     def unknown_query(self):
         self.lock.acquire()
         self.reply = ["Sorry I don't quite understand"]
-        self.cond_var_handler.notifyAll()
+        self.cond_var_handler.notify_all()
         self.lock.release()
+
+    # Synchronisation
+    def wait_for_response(self):
+        self.reply_received = False
+        self.awaiting_reply = True
+        self.cond_var_handler.notify_all()
+        while not self.reply_received:
+            logging.info("@ Action will wait")
+            self.cond_var_action.wait()
+            logging.info("TIME")
+        logging.info("@ Action stopped waiting")
+        self.awaiting_reply = False
 
 
 class Helper:
