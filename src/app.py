@@ -270,6 +270,14 @@ class Bubsy:
             satisfied = any(map(lambda x: x in POSITIVE_RESPONSE, words))
             if not satisfied: reply = ["Okay, let's do this again."]
 
+        # Add spending limit for categories that have not been changed
+        for category in categories:
+            if category not in updated_categories:
+                updated_categories[category] = budget[category]
+
+        weekday = date.today().weekday()
+        start_of_next_week = (date.today() + (timedelta(days=7) - timedelta(days=weekday)))
+        db.add_new_budget(updated_categories, start_of_next_week)
         self.reply = ["Great! Your budget has been changed"]
         self.cond_var_handler.notify_all()
         self.lock.release()

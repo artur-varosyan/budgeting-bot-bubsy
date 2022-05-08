@@ -1,4 +1,5 @@
 import mysql.connector
+from datetime import date, timedelta
 from mysql.connector import Error
 from json import load
 
@@ -40,13 +41,49 @@ class DBConnection:
             print("Error occurred while adding expense: ", e)
 
     def get_budget(self):
+        version = self.get_latest_budget_version()
         try:
-            sql = """SELECT C.name AS category, B.spend_limit FROM Budget B INNER JOIN Category C ON B.category = C.id"""
-            self.cursor.execute(sql)
+            sql = """SELECT C.name AS category, B.spend_limit FROM Budget B INNER JOIN Category C ON B.category = C.id WHERE B.version = ?"""
+            self.cursor.execute(sql, (version,))
             budget = self.cursor.fetchall()
             return budget
         except Error as e:
             print("Error occurred while getting expense: ", e)
+
+    def add_new_budget(self, budget, date_from):
+        old_version = self.get_latest_budget_version()
+        date_to = date_from - timedelta(days=1)
+        try:
+            sql = """UPDATE Budget SET date_to = ? WHERE version = ?"""
+            self.cursor.execute(sql, (date_to, old_version))
+            self.connection.commit()
+
+            for category, spend_limit in budget.items():
+                self.add_category_budget(old_version+1, category, spend_limit, date_from, None)
+
+        except Error as e:
+            print("Error occurred while creating a new budget: ", e)
+
+    def add_category_budget(self, version, category, spend_limit, date_from, date_to):
+        try:
+            sql = """INSERT INTO Budget (version, category, spend_limit, date_from, date_to) 
+            SELECT ?, id, ?, ?, ? FROM Category WHERE name = ?"""
+            details = (version, spend_limit, date_from, date_to, category)
+            self.cursor.execute(sql, details)
+            self.connection.commit()
+        except Error as e:
+            print("Error occurred while creating a new budget: ", e)
+
+        return
+
+    def get_latest_budget_version(self):
+        try:
+            sql = """SELECT MAX(version) FROM Budget """
+            self.cursor.execute(sql)
+            version = self.cursor.fetchone()[0]
+            return version
+        except Error as e:
+            print("Error occurred while getting latest budget version: ", e)
 
     def get_spending(self, start, end):
         try:
