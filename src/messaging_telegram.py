@@ -1,19 +1,11 @@
 # A proxy for messaging with the user via telegram
 
-import logging
-
 from time import sleep
 from json import load
 
 from telegram import Update, ForceReply
 from telegram.ext import ExtBot, Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
-
-logger = logging.getLogger(__name__)
 message_handler = None
 
 bot_token = None
@@ -62,7 +54,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
     else:
         instructions = "Here are some of the thins I can do ✨\n"
         instructions += "- Record an expense\n"
-        instructions += "- Tell you how much you spent\n"
+        instructions += "- Tell you how much you have spent\n"
         instructions += "- Show you your budget\n"
         instructions += "\nTry sending me these messages:\n"
         instructions += "- I paid £2.10 for a public transport ticket yesterday\n"
@@ -103,7 +95,7 @@ def init_bot():
 
 
 def listen(handler):
-    """Start the bot."""
+    # Start the bot
     init_bot()
 
     # Create the Updater and pass it your bot's token.
@@ -117,7 +109,7 @@ def listen(handler):
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
 
-    # on non command i.e message - echo the message on Telegram
+    # On non command i.e message - call the handler
     global message_handler
     message_handler = handler
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, incoming_message))
@@ -125,9 +117,7 @@ def listen(handler):
     # Start the Bot
     updater.start_polling()
 
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
+    # Run the bot until you press Ctrl-C
     updater.idle()
 
 
