@@ -3,9 +3,9 @@ import threading
 import logging
 from datetime import date, timedelta, datetime
 
-from messaging_terminal import listen as listen_terminal
-from messaging_telegram import listen as listen_telegram
-
+from messaging_abstract import CommunicationMethod
+from messaging_terminal import TerminalMessaging
+from messaging_telegram import TelegramMessaging
 import data as data
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
@@ -30,7 +30,7 @@ class Expense:
 
 class Bubsy:
 
-    def __init__(self, communication_method):
+    def __init__(self, communication_method: CommunicationMethod):
         # Threading objects
         self.awaiting_reply: bool = False
         self.reply_received: bool = False
@@ -45,7 +45,7 @@ class Bubsy:
 
     def start(self):
         # Start listening for communication
-        self.communication_method(self.handle_message)
+        self.communication_method.listen(self.handle_message)
 
     def handle_message(self, message: str) -> str:
         actions = {"SHOW_BUDGET": self.show_budget,
@@ -54,7 +54,6 @@ class Bubsy:
                    "NEW_BUDGET": self.new_budget,
                    "EXIT": None,
                    "UNKNOWN": self.unknown_query}
-        print(threading.active_count())
         print(f"> New Message Received: '{message}'")
         words = Helper.to_words(message)
         action = self.get_action(words)
@@ -68,7 +67,7 @@ class Bubsy:
                 set self.incoming to the new message
                 increase the semaphore
             else:
-                start a new thread
+                start_command a new thread
             wait on the thread to be finished
             set reply to self.reply
             """
@@ -113,7 +112,6 @@ class Bubsy:
         end = start + timedelta(days=6)
         db = data.connect()
         categories = db.get_categories()
-        print(categories)
         budget = db.get_budget()
         spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
         db.close()
@@ -411,7 +409,7 @@ class Helper:
                 start = date.today() - timedelta(days=1)
                 end = start
                 break
-            elif word == "week":  # Assume start of the week is Sunday
+            elif word == "week":  # Assume start_command of the week is Sunday
                 i = source.index("week")
                 if i > 0 and source[i - 1] == "this":
                     weekday = int(date.today().strftime("%w"))
@@ -422,7 +420,7 @@ class Helper:
                     start = (date.today() - timedelta(days=weekday) - timedelta(weeks=1))
                     end = start + timedelta(days=6)
                 break
-            elif word == "weekend":  # Assume start of the weekend is Saturday
+            elif word == "weekend":  # Assume start_command of the weekend is Saturday
                 i = source.index("weekend")
                 weekday = int(date.today().strftime("%w"))
                 if 0 < weekday:
@@ -462,11 +460,11 @@ class Helper:
 
 def main():
     args = sys.argv
-    chosen_communication = None
+    chosen_communication: CommunicationMethod = None
     if len(args) == 2 and args[1] == "--terminal":
-        chosen_communication = listen_terminal
+        chosen_communication = TerminalMessaging()
     elif len(args) == 1 or (len(args) == 2 and args[1] == "--telegram"):
-        chosen_communication = listen_telegram
+        chosen_communication = TelegramMessaging()
     else:
         print("Error: Unknown arguments passed. Correct usage:\n "
               "--terminal  for terminal communication\n "
