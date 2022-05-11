@@ -289,15 +289,6 @@ class Bubsy:
         self.reply = ["Great! Your budget has been changed"]
         self.cond_var_handler.notify_all()
         self.lock.release()
-
-        # TODO:
-        # 1. Update get_budget() to solely return the limits and not the spending
-        # 2. Add synchronisation - when an action is identified, start a new thread
-        #    - Sleep this thread while awaiting for a response using a conditional variable
-        #    - Create an idle/busy variable
-        #    - When a reply comes in, wake up the thread and continue
-        #    - Add an option to escape the sequence
-        #    - (potentially) Add support for multiple separate messages, e.g. by returning a list of strings
         return
 
     def set_category_budget(self, content, updated_categories):
@@ -328,7 +319,10 @@ class Bubsy:
         category = expense.category
         limit = budget.get(category, 0)
         spent = spending.get(category, 0)
-        proportion = spent / limit  # FIXME: Potential division by zero
+        if limit == 0:
+            proportion = OVER_THE_LIMIT + 0.1
+        else:
+            proportion = spent / limit
         if proportion > OVER_THE_LIMIT:
             amount = '£{:.2f}'.format(spent - limit)
             analysis += f"You overspent on {category} by {amount}!"
