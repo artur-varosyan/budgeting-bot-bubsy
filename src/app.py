@@ -1,7 +1,6 @@
 import sys
 import threading
 import logging
-from functools import partial
 from datetime import date, timedelta, datetime
 
 from messaging_terminal import listen as listen_terminal
@@ -44,12 +43,8 @@ class Bubsy:
         # Chosen communication method
         self.communication_method = communication_method
 
-    def adminTerminal(self):
-        # In future will run concurrently to chatbot()
-        # and will have backdoor access to that process
-        self.chatbot()
-
-    def chatbot(self):
+    def start(self):
+        # Start listening for communication
         self.communication_method(self.handle_message)
 
     def handle_message(self, message: str) -> str:
@@ -78,26 +73,19 @@ class Bubsy:
             set reply to self.reply
             """
             self.lock.acquire()
-            logging.info("Handler acquired lock")
             self.incoming_message = words
             if self.awaiting_reply:
                 print(f"< Continuing {self.last_action}")
-                logging.info("Handler identified waiting thread")
                 self.reply_received = True
                 self.cond_var_action.notify_all()
-                logging.info("Handler notified waiting thread")
             else:
                 print(f"< Performing {action}")
-                logging.info("Handler started a new thread")
                 action_thread = threading.Thread(target=actions[action], daemon=True)
                 action_thread.start()
-            logging.info("Handler waiting")
             self.cond_var_handler.wait()
-            logging.info("Handler returns")
             self.reply_received = False
             reply = self.reply
             self.lock.release()
-            logging.info("Handler releases lock")
         self.last_action = action
         return reply
 
@@ -190,9 +178,8 @@ class Bubsy:
 
     def new_expense(self):
         words = self.incoming_message
-        amount = 0
         db = data.connect()
-        # convert list of tuples of byte arrays to a set of strings
+        # Convert list of tuples of byte arrays to a set of strings
         categories = set(map(lambda c: c[0].decode(), db.get_categories()))
         category = ""
         for word in words:
@@ -475,18 +462,18 @@ class Helper:
 
 def main():
     args = sys.argv
-    listen = None
+    chosen_communication = None
     if len(args) == 2 and args[1] == "--terminal":
-        listen = listen_terminal
+        chosen_communication = listen_terminal
     elif len(args) == 1 or (len(args) == 2 and args[1] == "--telegram"):
-        listen = listen_telegram
+        chosen_communication = listen_telegram
     else:
         print("Error: Unknown arguments passed. Correct usage:\n "
               "--terminal  for terminal communication\n "
               "--telegram  for telegram bot communication (default)")
         return
-    bot = Bubsy(listen)
-    bot.adminTerminal()
+    bot = Bubsy(chosen_communication)
+    bot.start()
 
 
 if __name__ == "__main__":
