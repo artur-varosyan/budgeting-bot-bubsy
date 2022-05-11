@@ -250,6 +250,14 @@ class Bubsy:
                 if word in categories:
                     updated_categories[word] = 0
 
+            # Allow the user to cancel this operation
+            if len(updated_categories) == 0:
+                content = "I have cancelled the budget change for you!"
+                self.reply = [content]
+                self.cond_var_handler.notify_all()
+                self.lock.release()
+                return
+
             logging.info(updated_categories.keys())
             content = "Great! Let's take this one step at a time."
 
