@@ -42,6 +42,9 @@ class TelegramMessaging(CommunicationMethod):
             if this_chat_id == self.chat_id:
                 return True
             else:
+                print(f"!> Unauthorised message: '{update.message.text}'"
+                      f"\n   Sender: {update.effective_user.full_name} UserID: {update.effective_user.id}")
+                print("<! Permission Denied")
                 update.message.reply_text("Sorry you are not authorised to use this!")
                 return False
 
@@ -89,6 +92,30 @@ class TelegramMessaging(CommunicationMethod):
         except Exception:
             raise RuntimeError("The configuration file 'telegram_config.json' is missing or contains errors")
 
+    def echo_user_details(self, update: Update, context: CallbackContext) -> None:
+        print(f"> Message: '{update.message.text}'"
+              f"\n   Sender: {update.effective_user.full_name} UserID: {update.effective_user.id}")
+
+    # Listen for incoming messages from all users and print their details
+    # Used for configuration
+    def identify_users(self):
+        self.init_bot()
+        self.private_bot = False
+
+        # Create the Updater and pass it your bot's token.
+        updater = Updater(self.bot_token)
+
+        # Get the dispatcher to register handlers
+        dispatcher = updater.dispatcher
+
+        dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, self.echo_user_details))
+
+        # Start the Bot
+        updater.start_polling()
+
+        # Run the bot until you press Ctrl-C
+        updater.idle()
+
     def listen(self, handler: Callable[[str], str]):
         # Start the bot
         self.init_bot()
@@ -112,4 +139,3 @@ class TelegramMessaging(CommunicationMethod):
 
         # Run the bot until you press Ctrl-C
         updater.idle()
-

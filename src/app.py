@@ -463,15 +463,21 @@ def main():
     chosen_communication: CommunicationMethod = None
     if len(args) == 2 and args[1] == "--terminal":
         chosen_communication = TerminalMessaging()
-    elif len(args) == 1 or (len(args) == 2 and args[1] == "--telegram"):
+        bot = Bubsy(chosen_communication)
+        bot.start()
+    elif len(args) == 1 or (len(args) >= 2 and args[1] == "--telegram"):
         chosen_communication = TelegramMessaging()
+        if len(args) > 2 and args[2] == "--identify-users":
+            chosen_communication.identify_users()
+        else:
+            bot = Bubsy(chosen_communication)
+            bot.start()
     else:
         print("Error: Unknown arguments passed. Correct usage:\n "
               "--terminal  for terminal communication\n "
-              "--telegram  for telegram bot communication (default)")
+              "--telegram  for telegram bot communication (default)\n"
+              "    --identify-users  to echo telegram user IDs (for configuration only)")
         return
-    bot = Bubsy(chosen_communication)
-    bot.start()
 
 
 if __name__ == "__main__":
