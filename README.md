@@ -1,3 +1,5 @@
+[![Pytest](https://github.com/artur-varosyan/budgeting-bot/actions/workflows/python-app.yml/badge.svg)](https://github.com/artur-varosyan/budgeting-bot/actions/workflows/python-app.yml)
+
 # Budgeting Bot Bubsy
 
 ### A personal finance budget-managing tool deployed as a chatbot on the messaging platform Telegram. Bubsy records your expenses, shows your spending and keeps track of your budget.
