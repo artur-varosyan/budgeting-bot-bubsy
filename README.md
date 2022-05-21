@@ -50,6 +50,9 @@ The application contains two configuration files you must fill in before running
     "chatId": 0
   }
   ```
+  To obtain the _chatId_ and secure your bot, you may run the application with the flags as follows: <br>
+  `python app.py --telegram --identify-users` <br>
+  This will echo the _chatId_ of all incoming messages to the bot with the given token.
 
 # Usage
 
