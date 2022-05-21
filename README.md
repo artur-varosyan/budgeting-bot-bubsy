@@ -5,8 +5,8 @@
 ## Table of Contents
 1. [About](#budgeting-bot-bubsy)
 2. [Getting Started](#getting-started)
-   * [Pre-requisites]()
-   * [Configuration]()
+   * [Pre-requisites](#pre-requisites)
+   * [Configuration](#configuration)
 3. [Usage](#usage)
 4. [Deployment](#deployment)
 5. [Future Improvements](#future-improvements)
