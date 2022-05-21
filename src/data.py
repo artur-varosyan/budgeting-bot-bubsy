@@ -98,7 +98,7 @@ class DBConnection:
 
 def connect():
     try:
-        with open("config.json") as src_file:
+        with open("db_config.json") as src_file:
             config = load(src_file)
             host = config["dbHost"]
             db_name = config["dbName"]

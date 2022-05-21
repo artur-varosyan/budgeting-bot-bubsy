@@ -1,0 +1,5 @@
+{
+  "dbHost": "localhost",
+  "dbName": "budgetingbot_test",
+  "dbUser": "budgeting_bot"
+}

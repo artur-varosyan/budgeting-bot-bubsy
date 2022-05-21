@@ -81,13 +81,13 @@ class TelegramMessaging(CommunicationMethod):
     # Read in the configuration file and set user settings
     def init_bot(self):
         try:
-            with open("config.json") as src_file:
+            with open("telegram_config.json") as src_file:
                 config = load(src_file)
             self.bot_token = config["token"]
             self.chat_id = config["chatId"]
             self.private_bot = config["privateBot"]
         except Exception:
-            raise RuntimeError("The configuration file 'config.json' is missing or contains errors")
+            raise RuntimeError("The configuration file 'telegram_config.json' is missing or contains errors")
 
     def listen(self, handler: Callable[[str], str]):
         # Start the bot
