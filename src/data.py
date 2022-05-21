@@ -1,7 +1,8 @@
-import mysql.connector
-from datetime import date, timedelta
-from mysql.connector import Error
+from datetime import timedelta
 from json import load
+
+import mysql.connector
+from mysql.connector import Error
 
 
 class DBConnection:
