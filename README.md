@@ -12,8 +12,10 @@
    * [Creating the Telegram Bot](#creating-the-telegram-bot)
    * [Configuration](#configuration)
 3. [Usage](#usage)
-4. [Deployment](#deployment)
-5. [Future Improvements](#future-improvements)
+   * [Starting the bot](#starting-the-bot)
+   * [Conversing with the bot](#conversing-with-the-bot)
+5. [Deployment](#deployment)
+6. [Future Improvements](#future-improvements)
 
 # Getting Started
 
@@ -37,12 +39,10 @@ The application requires an SQL relational database to work. To set up your data
 * **db/createtables.sql** creates the required tables in the database
 * **db/importdata.sql, db/categories.csv, db/budget.csv, db/spending.csv** can be used to prefill the database with some data if you wish.
 
-<br>
 
 ## Creating the Telegram Bot
 (Optional) To converse with the bot through the messaging platform Telegram, you will need to create the bot using the application. You may find the instructions on how to do this [here](https://core.telegram.org/bots#6-botfather). Once you have your _bot token_ you can proceed with the configuration as shown below.
 
-<br>
 
 ## Configuration
 The application contains two configuration files you must fill in before running the bot:
@@ -72,10 +72,24 @@ The application contains two configuration files you must fill in before running
 
 # Usage
 
+## Starting the bot
+
 You may run the application by: <br>
 * `python app.py --terminal` to converse with the bot in the terminal, or alternatively, <br>
 * `python app.py --telegram` (default) to use the messaging platform Telegram
 
+## Conversing with the bot
+Some of the features that bubsy currently supports include:
+* recording an expense
+* showing your budget
+* showing your spending in a specified time frame
+* changing your budget
+* warning you when your spending is close or above your budget limits
+
+Try sending these messages:
+* `I spent £5 on transport yesterday` or
+* `Show me my budget` or
+* `How much did I spend last weekend?` 
 
 # Deployment
 The application has been deployed on an EC2 AWS instance.
