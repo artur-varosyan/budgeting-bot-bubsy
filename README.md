@@ -4,7 +4,8 @@
 
 ### A personal finance budget-managing tool deployed as a chatbot on the messaging platform Telegram. Bubsy records your expenses, shows your spending and keeps track of your budget.
 
-![Phone Screen](docs/phone_and_terminal.gif)
+![Phone Screen](docs/phone.gif)
+![Terminal](docs/terminal.gif)
 
 ## Table of Contents
 1. [About](#budgeting-bot-bubsy)
