@@ -8,6 +8,8 @@
 1. [About](#budgeting-bot-bubsy)
 2. [Getting Started](#getting-started)
    * [Pre-requisites](#pre-requisites)
+   * [Setting up the Database](#setting-up-the-database)
+   * [Creating the Telegram Bot](#creating-the-telegram-bot)
    * [Configuration](#configuration)
 3. [Usage](#usage)
 4. [Deployment](#deployment)
@@ -22,13 +24,25 @@ To run the application you will need the following:
 
 <br>
 
-To install Python pre-requisites:
+To install the required Python packages:
 ```
 pip install -r requirements.txt
 ```
 <br>
 
 Note: To communicate with the bot via the messaging platform Telegram you need [Telegram](https://telegram.org/) account and application.
+
+## Setting up the Database
+The application requires an SQL relational database to work. To set up your database you may use the scripts provided in **db/** directory.
+* **db/createtables.sql** creates the required tables in the database
+* **db/importdata.sql, db/categories.csv, db/budget.csv, db/spending.csv** can be used to prefill the database with some data if you wish.
+
+<br>
+
+## Creating the Telegram Bot
+(Optional) To converse with the bot through the messaging platform Telegram, you will need to create the bot using the application. You may find the instructions on how to do this [here](https://core.telegram.org/bots#6-botfather). Once you have your _bot token_ you can proceed with the configuration as shown below.
+
+<br>
 
 ## Configuration
 The application contains two configuration files you must fill in before running the bot:
