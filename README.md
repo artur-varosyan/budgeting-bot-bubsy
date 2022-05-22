@@ -79,7 +79,7 @@ You may run the application by: <br>
 * `python app.py --telegram` (default) to use the messaging platform Telegram
 
 ## Conversing with the bot
-Some of the features that bubsy currently supports include:
+Some of the features that Bubsy currently supports include:
 * recording an expense
 * showing your budget
 * showing your spending in a specified time frame
