@@ -104,7 +104,9 @@ def connect():
             host = config["dbHost"]
             db_name = config["dbName"]
             user = config["dbUser"]
-        connection = mysql.connector.connect(host=host, database=db_name, user=user)
+            password = config["dbPassword"]
+        connection = mysql.connector.connect(host=host, database=db_name, user=user, passwd=password,
+                                             auth_plugin="mysql_native_password")
         if connection.is_connected():
             cursor = connection.cursor(prepared=True)
             cursor.execute("select database();")

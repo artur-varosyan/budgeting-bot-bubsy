@@ -55,7 +55,8 @@ The application contains two configuration files you must fill in before running
   {
   "dbHost": "localhost",
   "dbName": "budget",
-  "dbUser": "bubsy"
+  "dbUser": "bubsy",
+  "dbPassword": "password"
   }
   ```
   
