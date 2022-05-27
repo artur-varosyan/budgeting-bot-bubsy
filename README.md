@@ -4,8 +4,7 @@
 
 ### A personal finance budget-managing tool deployed as a chatbot on the messaging platform Telegram. Bubsy records your expenses, shows your spending and keeps track of your budget.
 
-![Phone Screen](docs/phone.gif)
-![Terminal](docs/terminal.gif)
+![Screenshot of Telegram and Terminal](docs/phone_and_terminal.png)
 
 ## Table of Contents
 1. [About](#budgeting-bot-bubsy)
@@ -31,7 +30,7 @@ To run the application you will need the following:
 
 To install the required Python packages:
 ```
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 <br>
 
@@ -50,7 +49,7 @@ The application requires an SQL relational database to work. To set up your data
 ## Configuration
 The application contains two configuration files you must fill in before running the bot:
 
-* **src/db_config.json** <br>
+* **[src/db_config.json](src/db_config.json)** <br>
   The configuration settings for the database.
   ```json
   {
@@ -60,7 +59,7 @@ The application contains two configuration files you must fill in before running
   }
   ```
   
-* **src/telegram_config.json** <br>
+* **[src/telegram_config.json](src/telegram_config.json)** <br>
   _(Optionally) The configuration settings for the Telegram bot._
   ```json
   {
@@ -70,7 +69,7 @@ The application contains two configuration files you must fill in before running
   }
   ```
   To obtain the _chatId_ and secure your bot, you may run the application with the flags as follows: <br>
-  `python app.py --telegram --identify-users` <br>
+  `python3 app.py --telegram --identify-users` <br>
   This will echo the _chatId_ of all incoming messages to the bot with the given token.
 
 # Usage
@@ -78,8 +77,8 @@ The application contains two configuration files you must fill in before running
 ## Starting the bot
 
 You may run the application by: <br>
-* `python app.py --terminal` to converse with the bot in the terminal, or alternatively, <br>
-* `python app.py --telegram` (default) to use the messaging platform Telegram
+* `python3 app.py --terminal` to converse with the bot in the terminal, or alternatively, <br>
+* `python3 app.py --telegram` (default) to use the messaging platform Telegram
 
 ## Conversing with the bot
 Some of the features that Bubsy currently supports include:
@@ -90,7 +89,7 @@ Some of the features that Bubsy currently supports include:
 * warning you when your spending is close or above your budget limits
 
 Try sending these messages:
-* `I spent £5 on transport yesterday` or
+* `I spent £5 on groceries yesterday` or
 * `Show me my budget` or
 * `How much did I spend last weekend?` 
 
@@ -102,4 +101,4 @@ Some of the features I plan to add to the project:
 * Support for keeping track of recurring payments
 * Showing a spending graph via Google Sheets API
 
-To see an up-to-date list of features I am currently working on, see the [issues section]() of the repository.
+To see an up-to-date list of features I am currently working on, see the [issues section](https://github.com/artur-varosyan/budgeting-bot-bubsy/issues) of the repository.
