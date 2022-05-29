@@ -45,8 +45,15 @@ class Bubsy:
         self.communication_method = communication_method
 
     def start(self):
+        # Initialise communication (if needed)
+        self.communication_method.initialise()
+        # Track time
+        self.communication_method.track_time()
         # Start listening for communication
         self.communication_method.listen(self.handle_message)
+
+    def track_time(self):
+        pass
 
     def handle_message(self, message: str) -> str:
         actions = {"SHOW_BUDGET": self.show_budget,

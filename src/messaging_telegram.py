@@ -19,19 +19,16 @@ class TelegramMessaging(CommunicationMethod):
         self.chat_id = None
         self.private_bot = False
 
-    # Handle start command
-    def start_command(self, update: Update, context: CallbackContext) -> None:
-        print(f"> Received Command: /start")
-        passed = self.check_permissions(update)
-        if not passed:
-            return
-        else:
-            self.my_bot = context.bot
-            user = update.effective_user
-            update.message.reply_markdown_v2(
-                fr'Hi {user.mention_markdown_v2()} It is nice to meet you\! Send /help to learn how to talk to me 😄\!',
-                reply_markup=ForceReply(selective=True),
-            )
+    # Read in the configuration file and set user settings
+    def initialise(self):
+        try:
+            with open("telegram_config.json") as src_file:
+                config = load(src_file)
+            self.bot_token = config["token"]
+            self.chat_id = config["chatId"]
+            self.private_bot = config["privateBot"]
+        except Exception:
+            raise RuntimeError("The configuration file 'telegram_config.json' is missing or contains errors")
 
     # Check if the message author is authorised
     def check_permissions(self, update) -> bool:
@@ -48,6 +45,20 @@ class TelegramMessaging(CommunicationMethod):
                 update.message.reply_text("Sorry you are not authorised to use this!")
                 return False
 
+    # Handle start command
+    def start_command(self, update: Update, context: CallbackContext) -> None:
+        print(f"> Received Command: /start")
+        passed = self.check_permissions(update)
+        if not passed:
+            return
+        else:
+            self.my_bot = context.bot
+            user = update.effective_user
+            update.message.reply_markdown_v2(
+                fr'Hi {user.mention_markdown_v2()} It is nice to meet you\! Send /help to learn how to talk to me 😄\!',
+                reply_markup=ForceReply(selective=True),
+            )
+
     # Handle help command
     def help_command(self, update: Update, context: CallbackContext) -> None:
         print(f"> Received Command: /help")
@@ -55,6 +66,7 @@ class TelegramMessaging(CommunicationMethod):
         if not passed:
             return
         else:
+            self.my_bot = context.bot
             instructions = "Here are some of the thins I can do ✨\n"
             instructions += "- Record an expense\n"
             instructions += "- Tell you how much you have spent\n"
@@ -71,6 +83,7 @@ class TelegramMessaging(CommunicationMethod):
         if not passed:
             return
         else:
+            self.my_bot = context.bot
             replies: [str] = self.message_handler(update.message.text)
             for reply in replies:
                 update.message.reply_text(reply)
@@ -81,17 +94,6 @@ class TelegramMessaging(CommunicationMethod):
             self.my_bot.send_message(message)
         return
 
-    # Read in the configuration file and set user settings
-    def init_bot(self):
-        try:
-            with open("telegram_config.json") as src_file:
-                config = load(src_file)
-            self.bot_token = config["token"]
-            self.chat_id = config["chatId"]
-            self.private_bot = config["privateBot"]
-        except Exception:
-            raise RuntimeError("The configuration file 'telegram_config.json' is missing or contains errors")
-
     def echo_user_details(self, update: Update, context: CallbackContext) -> None:
         print(f"> Message: '{update.message.text}'"
               f"\n   Sender: {update.effective_user.full_name} UserID: {update.effective_user.id}")
@@ -99,7 +101,6 @@ class TelegramMessaging(CommunicationMethod):
     # Listen for incoming messages from all users and print their details
     # Used for configuration
     def identify_users(self):
-        self.init_bot()
         self.private_bot = False
 
         # Create the Updater and pass it your bot's token.
@@ -107,7 +108,6 @@ class TelegramMessaging(CommunicationMethod):
 
         # Get the dispatcher to register handlers
         dispatcher = updater.dispatcher
-
         dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, self.echo_user_details))
 
         # Start the Bot
@@ -117,9 +117,6 @@ class TelegramMessaging(CommunicationMethod):
         updater.idle()
 
     def listen(self, handler: Callable[[str], str]):
-        # Start the bot
-        self.init_bot()
-
         # Create the Updater and pass it your bot's token.
         updater = Updater(self.bot_token)
 

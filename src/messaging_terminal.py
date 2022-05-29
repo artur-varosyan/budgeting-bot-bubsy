@@ -5,6 +5,9 @@ from typing import Callable
 # A proxy for messaging with the user in the terminal
 class TerminalMessaging(CommunicationMethod):
 
+    def initialise(self):
+        pass
+
     def listen(self, handler: Callable[[str], str]):
         while True:
             message = self.get_message()
