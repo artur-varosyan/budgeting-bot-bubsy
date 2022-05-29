@@ -12,6 +12,7 @@ DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
+CANCEL_ACTION = {"cancel", "stop", "abort"}
 
 # SPENDING CONSTANTS
 OVER_THE_LIMIT = 1.0
@@ -177,16 +178,45 @@ class Bubsy:
     def new_expense(self):
         words = self.incoming_message
         db = data.connect()
+
         # Convert list of tuples of byte arrays to a set of strings
         categories = set(map(lambda c: c[0].decode(), db.get_categories()))
-        category = ""
+        category = None
         for word in words:
             if word in categories:
                 category = word
                 break
         amount = Helper.get_amount(words)
         expenseDate, _ = Helper.get_dates(words)
+        # If no date provided, assume expense occurred today
+        if expenseDate is None:
+            expenseDate = date.today()
         expenseDate = expenseDate.strftime("%Y-%m-%d")
+
+        # If no category provided, ask for clarification
+        reply = []
+        while category is None:
+            reply.append("What is the category of the expense?")
+            self.lock.acquire()
+            self.reply = reply
+            self.wait_for_response()
+            words = self.incoming_message
+            cancel = False
+            for word in words:
+                if word in CANCEL_ACTION:
+                    cancel = True
+            if cancel:
+                self.reply = ["Sure I cancelled the operation for you."]
+                self.cond_var_handler.notify_all()
+                self.lock.release()
+                return
+            for word in words:
+                if word in categories:
+                    category = word
+                    break
+            reply = ["I did not quite catch that. Let's try again."]
+            self.lock.release()
+
         new_expense = Expense(amount, category, expenseDate, "", False)
         db.add_expense(new_expense)
         now = date.today()
@@ -198,7 +228,8 @@ class Bubsy:
         db.close()
         reply = [f"Noted! You spent {'£{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
         analysis = self.expense_analysis(spending, budget, new_expense)
-        if analysis != "": reply.append(analysis)
+        if analysis != "":
+            reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
         self.cond_var_handler.notify_all()
