@@ -57,14 +57,16 @@ class Bubsy:
     def track_time(self):
         # Get current date
         weekday = date.today().weekday()
-        start_of_next_week = date.today() # + (timedelta(days=7) - timedelta(days=weekday))
+        start_of_next_week = date.today() + (timedelta(days=6) - timedelta(days=weekday))
         start_of_next_week = datetime.combine(start_of_next_week, datetime.min.time())
-        summary_time = start_of_next_week + timedelta(hours=TIME_OF_BUDGET_SUMMARY) + timedelta(minutes=3)
+        summary_time = start_of_next_week + timedelta(hours=TIME_OF_BUDGET_SUMMARY) + timedelta(minutes=53)
 
-        # Wait until next budget summary time
-        pause.until(summary_time)
-        print("Stop pausing")
-        self.budget_summary()
+        while True:
+            # Wait until next budget summary time
+            print("Waiting until " + str(summary_time) + " for next weekly budget summary")
+            pause.until(summary_time)
+            self.budget_summary()
+            summary_time += timedelta(days=7)
 
     def handle_message(self, message: str) -> str:
         # If first time contacted, start tracking time
@@ -130,8 +132,40 @@ class Bubsy:
             return "UNKNOWN"
 
     def budget_summary(self):
-        reply = "Hi! Here is you weekly budget summary"
+        print(f"< WEEKLY BUDGET SUMMARY")
+        reply = "Hi! Here is you weekly budget summary ☀️"
         self.communication_method.send_message(reply)
+
+        now = date.today()
+        start = now - timedelta(days=int(now.strftime("%w")))
+        end = start + timedelta(days=6)
+
+        db = data.connect()
+        categories = db.get_categories()
+        budget = db.get_budget()
+        budget = Helper.to_dict(budget)
+        spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+        spending = Helper.to_dict(spending)
+
+        start -= timedelta(days=7)
+        end -= timedelta(days=7)
+        last_week_spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+        last_week_spending = Helper.to_dict(last_week_spending)
+
+        total_spending = sum(spending.values())
+        total_spending_last_week = sum(last_week_spending.values())
+
+        reply = f"Overall you have spent £{'{:.2f}'.format(total_spending)} this week. "
+
+        difference = ((total_spending - total_spending_last_week) / total_spending_last_week) * 100
+        if difference > 0:
+            reply += f"This is {'{:.2f}'.format(abs(difference))}% more than last week."
+        else:
+            reply += f"This is {'{:.2f}'.format(abs(difference))}% less than last week."
+        self.communication_method.send_message(reply)
+
+        analysis = self.budget_analysis(categories, budget, spending)
+        self.communication_method.send_message(analysis)
 
     def show_budget(self):
         reply = []
@@ -146,14 +180,21 @@ class Bubsy:
         db.close()
         budget = Helper.to_dict(budget)
         spending = Helper.to_dict(spending)
+        total_spending = 0
+        total_limit = 0
         for category in categories:
             category = category[0].decode()
             cat_spending = '{:.2f}'.format(spending.get(category, 0))
+            total_spending += spending.get(category, 0)
             cat_limit = '{:.2f}'.format(budget.get(category))
+            total_limit += budget.get(category)
             content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
+        content += f"\nOverall you spent £{'{:.2f}'.format(total_spending)} " \
+                   f"out of £{'{:.2f}'.format(total_limit)} this week."
         reply.append(content)
         analysis = self.budget_analysis(categories, budget, spending)
-        if analysis != "": reply.append(analysis)
+        if analysis != "":
+            reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
         self.cond_var_handler.notify_all()
