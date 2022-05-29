@@ -1,6 +1,7 @@
 import sys
 import threading
 import logging
+import pause
 from datetime import date, timedelta, datetime
 
 from messaging_abstract import CommunicationMethod
@@ -13,6 +14,7 @@ DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
 CANCEL_ACTION = {"cancel", "stop", "abort"}
+TIME_OF_BUDGET_SUMMARY = 15  # Hours after midnight
 
 # SPENDING CONSTANTS
 OVER_THE_LIMIT = 1.0
@@ -35,6 +37,7 @@ class Bubsy:
         # Threading objects
         self.awaiting_reply: bool = False
         self.reply_received: bool = False
+        self.contacted: bool = False
         self.lock = threading.Lock()
         self.cond_var_handler = threading.Condition(self.lock)
         self.cond_var_action = threading.Condition(self.lock)
@@ -47,15 +50,29 @@ class Bubsy:
     def start(self):
         # Initialise communication (if needed)
         self.communication_method.initialise()
-        # Track time
-        self.communication_method.track_time()
         # Start listening for communication
         self.communication_method.listen(self.handle_message)
 
+    # Send notifications at timed intervals
     def track_time(self):
-        pass
+        # Get current date
+        weekday = date.today().weekday()
+        start_of_next_week = date.today() # + (timedelta(days=7) - timedelta(days=weekday))
+        start_of_next_week = datetime.combine(start_of_next_week, datetime.min.time())
+        summary_time = start_of_next_week + timedelta(hours=TIME_OF_BUDGET_SUMMARY) + timedelta(minutes=3)
+
+        # Wait until next budget summary time
+        pause.until(summary_time)
+        print("Stop pausing")
+        self.budget_summary()
 
     def handle_message(self, message: str) -> str:
+        # If first time contacted, start tracking time
+        if not self.contacted:
+            thread = threading.Thread(target=self.track_time, daemon=True)
+            thread.start()
+
+        self.contacted = True
         actions = {"SHOW_BUDGET": self.show_budget,
                    "SHOW_SPENDING": self.show_spending,
                    "ADD_EXPENSE": self.new_expense,
@@ -111,6 +128,10 @@ class Bubsy:
             return "NEW_BUDGET"
         else:
             return "UNKNOWN"
+
+    def budget_summary(self):
+        reply = "Hi! Here is you weekly budget summary"
+        self.communication_method.send_message(reply)
 
     def show_budget(self):
         reply = []

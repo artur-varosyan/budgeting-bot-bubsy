@@ -91,7 +91,7 @@ class TelegramMessaging(CommunicationMethod):
     # Send a message to the user
     def send_message(self, message: str):
         if self.my_bot is not None:
-            self.my_bot.send_message(message)
+            self.my_bot.send_message(chat_id=self.chat_id, text=message)
         return
 
     def echo_user_details(self, update: Update, context: CallbackContext) -> None:
