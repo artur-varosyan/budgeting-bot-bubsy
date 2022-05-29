@@ -14,7 +14,7 @@ DAYS = {"today", "yesterday"}
 PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
 CANCEL_ACTION = {"cancel", "stop", "abort"}
-TIME_OF_BUDGET_SUMMARY = 15  # Hours after midnight
+TIME_OF_BUDGET_SUMMARY = 9  # Hours after midnight
 
 # SPENDING CONSTANTS
 OVER_THE_LIMIT = 1.0
@@ -57,9 +57,9 @@ class Bubsy:
     def track_time(self):
         # Get current date
         weekday = date.today().weekday()
-        start_of_next_week = date.today() + (timedelta(days=6) - timedelta(days=weekday))
+        start_of_next_week = date.today() + (timedelta(days=7) - timedelta(days=weekday))
         start_of_next_week = datetime.combine(start_of_next_week, datetime.min.time())
-        summary_time = start_of_next_week + timedelta(hours=TIME_OF_BUDGET_SUMMARY) + timedelta(minutes=53)
+        summary_time = start_of_next_week + timedelta(hours=TIME_OF_BUDGET_SUMMARY) + timedelta(minutes=0)
 
         while True:
             # Wait until next budget summary time
@@ -70,6 +70,7 @@ class Bubsy:
 
     def handle_message(self, message: str) -> str:
         # If first time contacted, start tracking time
+        # The bot can only send messages after at least one has been received
         if not self.contacted:
             thread = threading.Thread(target=self.track_time, daemon=True)
             thread.start()
@@ -133,8 +134,8 @@ class Bubsy:
 
     def budget_summary(self):
         print(f"< WEEKLY BUDGET SUMMARY")
-        reply = "Hi! Here is you weekly budget summary ☀️"
-        self.communication_method.send_message(reply)
+        message = "Hi! Here is you weekly budget summary ☀️\n"
+        self.communication_method.send_message(message)
 
         now = date.today()
         start = now - timedelta(days=int(now.strftime("%w")))
@@ -155,23 +156,23 @@ class Bubsy:
         total_spending = sum(spending.values())
         total_spending_last_week = sum(last_week_spending.values())
 
-        reply = f"Overall you have spent £{'{:.2f}'.format(total_spending)} this week. "
+        message = f"Overall you have spent £{'{:.2f}'.format(total_spending)} this week. "
 
         difference = ((total_spending - total_spending_last_week) / total_spending_last_week) * 100
         if difference > 0:
-            reply += f"This is {'{:.2f}'.format(abs(difference))}% more than last week."
+            message += f"This is {abs(round(difference))}% more 📈 than last week 😅. "
         else:
-            reply += f"This is {'{:.2f}'.format(abs(difference))}% less than last week."
-        self.communication_method.send_message(reply)
+            message += f"This is {abs(round(difference))}% less 📉 than last week 😁. "
 
-        analysis = self.budget_analysis(categories, budget, spending)
-        self.communication_method.send_message(analysis)
+        message += self.budget_analysis(categories, budget, spending)
+        self.communication_method.send_message(message)
 
     def show_budget(self):
         reply = []
         content = f"Sure! \nHere is what you spent this week:"
         now = date.today()
-        start = now - timedelta(days=int(now.strftime("%w")))
+        weekday = now.weekday()
+        start = now - timedelta(days=weekday)
         end = start + timedelta(days=6)
         db = data.connect()
         categories = db.get_categories()
@@ -240,8 +241,8 @@ class Bubsy:
                     amounts += ", "
                 text += category[0]
                 amounts += '£{:.2f}'.format(category[1])
-            analysis += f"You overspent on {text} by {amounts}"
-            analysis += "\nConsider spending less next week"
+            analysis += f"You overspent on {text} by {amounts}."
+            analysis += "\nConsider spending less next week! 😉"
         return analysis
 
     def new_expense(self):
@@ -509,28 +510,28 @@ class Helper:
                 start = date.today() - timedelta(days=1)
                 end = start
                 break
-            elif word == "week":  # Assume start_command of the week is Sunday
+            elif word == "week":  # Assume start of the week is Monday
                 i = source.index("week")
                 if i > 0 and source[i - 1] == "this":
-                    weekday = int(date.today().strftime("%w"))
+                    weekday = date.today().weekday()
                     start = (date.today() - timedelta(days=weekday))
                     end = start + timedelta(days=6)
                 elif i > 0 and (source[i - 1] == "last" or source[i - 1] == "previous"):
-                    weekday = int(date.today().strftime("%w"))
+                    weekday = date.today().weekday()
                     start = (date.today() - timedelta(days=weekday) - timedelta(weeks=1))
                     end = start + timedelta(days=6)
                 break
-            elif word == "weekend":  # Assume start_command of the weekend is Saturday
+            elif word == "weekend":  # Assume start of the weekend is Saturday
                 i = source.index("weekend")
-                weekday = int(date.today().strftime("%w"))
-                if 0 < weekday:
-                    start = (date.today() + timedelta(days=(6 - weekday)))
+                weekday = date.today().weekday()
+                if weekday < 6:
+                    start = (date.today() + timedelta(days=(5 - weekday)))
                 else:
                     start = (date.today() - timedelta(days=1))
                     end = start + timedelta(days=1)
                 if i > 0 and (source[i - 1] == "last" or source[i - 1] == "previous"):
                     start -= timedelta(weeks=1)
-                    end = start + timedelta(weeks=1)
+                    end -= timedelta(weeks=1)
                 break
             elif '/' in word or '-' in word:
                 start = Helper.custom_date(word)
