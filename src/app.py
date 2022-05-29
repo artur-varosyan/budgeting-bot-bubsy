@@ -138,7 +138,8 @@ class Bubsy:
         self.communication_method.send_message(message)
 
         now = date.today()
-        start = now - timedelta(days=int(now.strftime("%w")))
+        weekday = now.weekday()
+        start = now - timedelta(days=weekday) - timedelta(weeks=1)
         end = start + timedelta(days=6)
 
         db = data.connect()
@@ -148,21 +149,21 @@ class Bubsy:
         spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
         spending = Helper.to_dict(spending)
 
-        start -= timedelta(days=7)
-        end -= timedelta(days=7)
+        start -= timedelta(weeks=1)
+        end -= timedelta(weeks=1)
         last_week_spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
         last_week_spending = Helper.to_dict(last_week_spending)
 
         total_spending = sum(spending.values())
         total_spending_last_week = sum(last_week_spending.values())
 
-        message = f"Overall you have spent £{'{:.2f}'.format(total_spending)} this week. "
+        message = f"Overall you have spent £{'{:.2f}'.format(total_spending)} last week. "
 
         difference = ((total_spending - total_spending_last_week) / total_spending_last_week) * 100
         if difference > 0:
-            message += f"This is {abs(round(difference))}% more 📈 than last week 😅. "
+            message += f"This is {abs(round(difference))}% more 📈 than the week before 😅. "
         else:
-            message += f"This is {abs(round(difference))}% less 📉 than last week 😁. "
+            message += f"This is {abs(round(difference))}% less 📉 than the week before 😁. "
 
         message += self.budget_analysis(categories, budget, spending)
         self.communication_method.send_message(message)
