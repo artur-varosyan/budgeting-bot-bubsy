@@ -43,7 +43,7 @@ def find_amount(overlay: [dict]) -> float:
             words = line["Words"]
 
             # If on same line as keyword, start with next word
-            if overlay[0] == line:
+            if overlay[line_no] == line:
                 words = words[word_no+1:]
 
             for word in words:
