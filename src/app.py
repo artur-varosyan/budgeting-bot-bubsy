@@ -71,6 +71,8 @@ class Bubsy:
 
     def handle_photo(self, photo: bytearray) -> list[str]:
         amount = ocr.scan_receipt(photo)
+        if amount is None:
+            amount = "Could not find the total amount"
         return ["Received and processed image", amount]
 
     def handle_message(self, message: str) -> str:
