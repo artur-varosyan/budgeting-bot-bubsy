@@ -7,6 +7,8 @@ from json import load
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+SAVED_PHOTO_PATH = "photos/"
+
 
 # A proxy for messaging with the user via telegram
 class TelegramMessaging(CommunicationMethod):
@@ -14,6 +16,7 @@ class TelegramMessaging(CommunicationMethod):
     # Initialise attributes when instantiated
     def __init__(self):
         self.message_handler = None
+        self.photo_handler = None
         self.bot_token = None
         self.my_bot = None
         self.chat_id = None
@@ -88,6 +91,23 @@ class TelegramMessaging(CommunicationMethod):
             for reply in replies:
                 update.message.reply_text(reply)
 
+    def incoming_photo(self, update: Update, context: CallbackContext) -> None:
+        # Last photo has the highest quality
+        photo = update.message.photo[-1]
+        print("file width = " + str(photo.width))
+        print("file height = " + str(photo.height))
+        print("file size = " + str(photo.file_size))
+        file = context.bot.getFile(photo.file_id)
+
+        # Download the photo and save to specified path
+        file.download(SAVED_PHOTO_PATH + "received_photo.png")
+        # Download the photo and store as a bytearray in memory
+        photo_bytes = file.download_as_bytearray()
+        print(type(photo_bytes))
+        replies = self.photo_handler(photo_bytes)
+        for reply in replies:
+            update.message.reply_text(reply)
+
     # Send a message to the user
     def send_message(self, message: str):
         if self.my_bot is not None:
@@ -116,7 +136,7 @@ class TelegramMessaging(CommunicationMethod):
         # Run the bot until you press Ctrl-C
         updater.idle()
 
-    def listen(self, handler: Callable[[str], str]):
+    def listen(self, text_handler: Callable[[str], str], photo_handler: Callable[[bytearray], str]):
         # Create the Updater and pass it your bot's token.
         updater = Updater(self.bot_token)
 
@@ -128,7 +148,9 @@ class TelegramMessaging(CommunicationMethod):
         dispatcher.add_handler(CommandHandler("help", self.help_command))
 
         # On non command i.e message - call the handler
-        self.message_handler = handler
+        self.message_handler = text_handler
+        self.photo_handler = photo_handler
+        dispatcher.add_handler(MessageHandler(Filters.photo, self.incoming_photo))
         dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, self.incoming_message))
 
         # Start the Bot

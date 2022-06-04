@@ -9,7 +9,7 @@ class CommunicationMethod(ABC):
         pass
 
     @abstractmethod
-    def listen(self, handler: Callable[[str], str]):
+    def listen(self, text_handler: Callable[[str], list[str]], photo_handler: Callable[[bytearray], list[str]]):
         pass
 
     @abstractmethod

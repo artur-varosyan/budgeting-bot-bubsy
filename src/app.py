@@ -8,6 +8,7 @@ from messaging_abstract import CommunicationMethod
 from messaging_terminal import TerminalMessaging
 from messaging_telegram import TelegramMessaging
 import data as data
+import ocr
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 DAYS = {"today", "yesterday"}
@@ -51,7 +52,7 @@ class Bubsy:
         # Initialise communication (if needed)
         self.communication_method.initialise()
         # Start listening for communication
-        self.communication_method.listen(self.handle_message)
+        self.communication_method.listen(self.handle_message, self.handle_photo)
 
     # Send notifications at timed intervals
     def track_time(self):
@@ -67,6 +68,10 @@ class Bubsy:
             pause.until(summary_time)
             self.budget_summary()
             summary_time += timedelta(days=7)
+
+    def handle_photo(self, photo: bytearray) -> list[str]:
+        amount = ocr.scan_receipt(photo)
+        return ["Received and processed image", amount]
 
     def handle_message(self, message: str) -> str:
         # If first time contacted, start tracking time
