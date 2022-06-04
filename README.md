@@ -47,7 +47,7 @@ The application requires an SQL relational database to work. To set up your data
 
 
 ## Configuration
-The application contains two configuration files you must fill in before running the bot:
+The application contains three configuration files you must fill in before running the bot:
 
 * **[src/db_config.json](src/db_config.json)** <br>
   The configuration settings for the database.
@@ -72,6 +72,14 @@ The application contains two configuration files you must fill in before running
   To obtain the _chatId_ and secure your bot, you may run the application with the flags as follows: <br>
   `python3 app.py --telegram --identify-users` <br>
   This will echo the _chatId_ of all incoming messages to the bot with the given token.
+  
+* **[src/ocr_config.json](src/ocr_config.json)** <br>
+  _(Optionally) The configuration settings for the OCRSpace API used for receipt scanning. You can register and acquire the API key [here](https://ocr.space/OCRAPI)._ 
+  ```json
+  {
+    "apiKey": ""
+  }
+  ```
 
 # Usage
 
@@ -88,6 +96,7 @@ Some of the features that Bubsy currently supports include:
 * showing your spending in a specified time frame
 * changing your budget
 * warning you when your spending is close or above your budget limits
+* (NEW) scanning photos of receipts to find the total amount spend
 
 Try sending these messages:
 * `I spent £5 on groceries yesterday` or
