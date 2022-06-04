@@ -1,13 +1,10 @@
 from messaging_abstract import CommunicationMethod
 
 from typing import Callable
-from time import sleep
 from json import load
 
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
-SAVED_PHOTO_PATH = "photos/"
 
 
 # A proxy for messaging with the user via telegram
@@ -23,7 +20,7 @@ class TelegramMessaging(CommunicationMethod):
         self.private_bot = False
 
     # Read in the configuration file and set user settings
-    def initialise(self):
+    def initialise(self) -> None:
         try:
             with open("telegram_config.json") as src_file:
                 config = load(src_file)
@@ -85,34 +82,33 @@ class TelegramMessaging(CommunicationMethod):
         passed = self.check_permissions(update)
         if not passed:
             return
-        else:
-            self.my_bot = context.bot
-            replies: [str] = self.message_handler(update.message.text)
-            for reply in replies:
-                update.message.reply_text(reply)
 
+        self.my_bot = context.bot
+        replies: [str] = self.message_handler(update.message.text)
+        for reply in replies:
+            update.message.reply_text(reply)
+
+    # Analyse the incoming photo message and pass it to handler
     def incoming_photo(self, update: Update, context: CallbackContext) -> None:
+        passed = self.check_permissions(update)
+        if not passed:
+            return
+
         # Last photo has the highest quality
         photo = update.message.photo[-1]
-        print("file width = " + str(photo.width))
-        print("file height = " + str(photo.height))
-        print("file size = " + str(photo.file_size))
         file = context.bot.getFile(photo.file_id)
 
-        # Download the photo and save to specified path
-        file.download(SAVED_PHOTO_PATH + "received_photo.png")
         # Download the photo and store as a bytearray in memory
         photo_bytes = file.download_as_bytearray()
-        print(type(photo_bytes))
+
         replies = self.photo_handler(photo_bytes)
         for reply in replies:
             update.message.reply_text(reply)
 
     # Send a message to the user
-    def send_message(self, message: str):
+    def send_message(self, message: str) -> None:
         if self.my_bot is not None:
             self.my_bot.send_message(chat_id=self.chat_id, text=message)
-        return
 
     def echo_user_details(self, update: Update, context: CallbackContext) -> None:
         print(f"> Message: '{update.message.text}'"

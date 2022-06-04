@@ -8,10 +8,11 @@ class TerminalMessaging(CommunicationMethod):
     def initialise(self):
         pass
 
-    def listen(self, handler: Callable[[str], str]):
+    def listen(self, handler: Callable[[str], str], photo_handler: Callable[[bytearray], list[str]]):
+        # Note: Photo messages are not supported in the terminal
         while True:
             message = self.get_message()
-            replies: [str] = handler(message)
+            replies = handler(message)
             for reply in replies:
                 self.send_message(reply)
 

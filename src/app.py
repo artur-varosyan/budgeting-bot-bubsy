@@ -2,13 +2,14 @@ import sys
 import threading
 import logging
 import pause
+from typing import Optional
 from datetime import date, timedelta, datetime
 
 from messaging_abstract import CommunicationMethod
 from messaging_terminal import TerminalMessaging
 from messaging_telegram import TelegramMessaging
 import data as data
-import ocr
+import receipt_scanning
 
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 DAYS = {"today", "yesterday"}
@@ -41,9 +42,10 @@ class Bubsy:
         self.contacted: bool = False
         self.lock = threading.Lock()
         self.cond_var_handler = threading.Condition(self.lock)
+        self.cond_var_handler = threading.Condition(self.lock)
         self.cond_var_action = threading.Condition(self.lock)
         self.incoming_message: [str] = ""
-        self.reply: [str] = ""
+        self.reply: list[str] = ""
         self.last_action = ""
         # Chosen communication method
         self.communication_method = communication_method
@@ -70,21 +72,36 @@ class Bubsy:
             summary_time += timedelta(days=7)
 
     def handle_photo(self, photo: bytearray) -> list[str]:
-        amount = ocr.scan_receipt(photo)
-        if amount is None:
-            amount = "Could not find the total amount"
-        else:
-            amount = "Total spent: £" + amount
-        return ["Received and processed image", amount]
-
-    def handle_message(self, message: str) -> str:
         # If first time contacted, start tracking time
         # The bot can only send messages after at least one has been received
         if not self.contacted:
             thread = threading.Thread(target=self.track_time, daemon=True)
             thread.start()
+            self.contacted = True
 
-        self.contacted = True
+        print(f"> Received Photo")
+
+        amount = receipt_scanning.scan_receipt(photo)
+        messages = []
+        if amount is None:
+            print(f"< Photo is not a receipt or scanning has failed")
+            messages.append("Sorry I could not find the amount you have spent 😅")
+            messages.append("Please send me a message with the expense details instead.")
+            return messages
+        else:
+            messages = [f"From the receipt I can see that you spent {'£{:.2f}'.format(amount)} 😄"]
+            message_string = "spent " + '£{:.2f}'.format(amount) + " today"
+            messages.extend(self.handle_message(message_string))
+            return messages
+
+    def handle_message(self, message: str) -> list[str]:
+        # If first time contacted, start tracking time
+        # The bot can only send messages after at least one has been received
+        if not self.contacted:
+            thread = threading.Thread(target=self.track_time, daemon=True)
+            thread.start()
+            self.contacted = True
+
         actions = {"SHOW_BUDGET": self.show_budget,
                    "SHOW_SPENDING": self.show_spending,
                    "ADD_EXPENSE": self.new_expense,
@@ -255,26 +272,16 @@ class Bubsy:
             analysis += "\nConsider spending less next week! 😉"
         return analysis
 
-    def new_expense(self):
-        words = self.incoming_message
-        db = data.connect()
+    def ask_for_category(self, categories=None, reply=None) -> Optional[str]:
+        if categories is None:
+            db = data.connect()
+            categories = set(map(lambda c: c[0].decode(), db.get_categories()))
+            db.close()
 
-        # Convert list of tuples of byte arrays to a set of strings
-        categories = set(map(lambda c: c[0].decode(), db.get_categories()))
+        if reply is None:
+            reply = []
+
         category = None
-        for word in words:
-            if word in categories:
-                category = word
-                break
-        amount = Helper.get_amount(words)
-        expenseDate, _ = Helper.get_dates(words)
-        # If no date provided, assume expense occurred today
-        if expenseDate is None:
-            expenseDate = date.today()
-        expenseDate = expenseDate.strftime("%Y-%m-%d")
-
-        # If no category provided, ask for clarification
-        reply = []
         while category is None:
             reply.append("What is the category of the expense?")
             self.lock.acquire()
@@ -289,13 +296,41 @@ class Bubsy:
                 self.reply = ["Sure I cancelled the operation for you."]
                 self.cond_var_handler.notify_all()
                 self.lock.release()
-                return
+                return None
             for word in words:
                 if word in categories:
                     category = word
                     break
             reply = ["I did not quite catch that. Let's try again."]
             self.lock.release()
+
+        return category
+
+    def new_expense(self):
+        words = self.incoming_message
+        db = data.connect()
+
+        # Convert list of tuples of byte arrays to a set of strings
+        categories = set(map(lambda c: c[0].decode(), db.get_categories()))
+        category = None
+        for word in words:
+            if word in categories:
+                category = word
+                break
+
+        amount = Helper.get_amount(words)
+
+        expenseDate, _ = Helper.get_dates(words)
+        # If no date provided, assume expense occurred today
+        if expenseDate is None:
+            expenseDate = date.today()
+        expenseDate = expenseDate.strftime("%Y-%m-%d")
+
+        # If no category provided, ask for clarification
+        if category is None:
+            category = self.ask_for_category(categories)
+            if category is None:
+                return
 
         new_expense = Expense(amount, category, expenseDate, "", False)
         db.add_expense(new_expense)

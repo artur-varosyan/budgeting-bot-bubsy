@@ -1,9 +1,12 @@
 from typing import Optional
-
 import requests
 import json
 import base64
 
+# This implementation uses a free Optical Character Recognition (OCR) API
+# You may sign up and request the API Key here https://ocr.space/OCRAPI
+
+SUCCESS_CODE = 200
 DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 WORDS_ASSOCIATED_WITH_AMOUNT = ["total", "balance", "paid", "subtotal"]
 MAX_VERTICAL_LINE_OFFSET = 0.5  # percentage
@@ -35,7 +38,7 @@ def parse_amount(text: str) -> str:
 
 
 # Given the location of the keyword, find the numeric amount
-def find_numeric_amount(overlay: [dict], line_no: int, word_no: int, y_coordinate: float) -> Optional[str]:
+def find_numeric_amount(overlay: [dict], line_no: int, word_no: int, y_coordinate: float) -> Optional[float]:
     # Start from the same line
     # TODO: The order of amount and keyword lines could be different
     for line in overlay[line_no:]:
@@ -51,6 +54,7 @@ def find_numeric_amount(overlay: [dict], line_no: int, word_no: int, y_coordinat
             max_diff = float(word["Height"]) * MAX_VERTICAL_LINE_OFFSET
             if vertical_diff < max_diff and is_amount(word_text):
                 amount = parse_amount(word_text)
+                amount = float(amount)
                 return amount
 
     return None
@@ -59,14 +63,13 @@ def find_numeric_amount(overlay: [dict], line_no: int, word_no: int, y_coordinat
 # Find total amount paid by finding a keyword and considering location in image
 # Use the fact that the total keyword and the amount paid on a receipt should be on the same line
 # TODO: Use Hamming Distance calculation to identify unclear printed text
-def find_keyword(overlay: [dict]) -> Optional[str]:
+def find_keyword(overlay: [dict]) -> Optional[float]:
     for line_no, line in enumerate(overlay):
         words = line["Words"]
 
         for word_no, word in enumerate(words):
             word_text = word["WordText"].lower()
             if any(map(lambda keyword: keyword in word_text, WORDS_ASSOCIATED_WITH_AMOUNT)):
-                print("FOUND KEYWORD: " + word_text)
                 keyword_y_coordinate = word["Top"]
                 amount = find_numeric_amount(overlay, line_no, word_no, keyword_y_coordinate)
                 if amount is not None:
@@ -85,7 +88,8 @@ def initialise():
         raise RuntimeError("The configuration file 'ocr_config.json' is missing or contains errors")
 
 
-def scan_receipt(photo: bytearray) -> Optional[str]:
+# Given a photo of a receipt, use OCR to find the total amount spent
+def scan_receipt(photo: bytearray) -> Optional[float]:
     if not initialised:
         initialise()
 
@@ -101,10 +105,12 @@ def scan_receipt(photo: bytearray) -> Optional[str]:
 
     r = requests.post('https://api.ocr.space/parse/image', data=payload, )
 
-    print(r.status_code)
-    print(r.reason)
     result = r.content.decode()
     result = json.loads(result)
-    overlay = result["ParsedResults"][0]["TextOverlay"]["Lines"]
-    amount = find_keyword(overlay)
-    return amount
+
+    if r.status_code == SUCCESS_CODE and not result["IsErroredOnProcessing"]:
+        overlay = result["ParsedResults"][0]["TextOverlay"]["Lines"]
+        amount = find_keyword(overlay)
+        return amount
+    else:
+        return None
