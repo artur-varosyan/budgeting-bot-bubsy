@@ -8,6 +8,9 @@ DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 WORDS_ASSOCIATED_WITH_AMOUNT = ["total", "balance", "paid", "subtotal"]
 MAX_VERTICAL_LINE_OFFSET = 0.5  # percentage
 
+initialised = False
+api_key = None
+
 
 def is_amount(text: str) -> bool:
     contains_numbers = any(map(lambda digit: digit in text, DIGITS))
@@ -72,12 +75,25 @@ def find_keyword(overlay: [dict]) -> Optional[str]:
     return None
 
 
+def initialise():
+    try:
+        with open("ocr_config.json") as src_file:
+            config = json.load(src_file)
+        global api_key
+        api_key = config["apiKey"]
+    except Exception:
+        raise RuntimeError("The configuration file 'ocr_config.json' is missing or contains errors")
+
+
 def scan_receipt(photo: bytearray) -> Optional[str]:
+    if not initialised:
+        initialise()
+
     base64_encoded_data = base64.b64encode(photo)
     base64_string = "data:image/jpg;base64," + str(base64_encoded_data.decode('utf-8'))
 
     payload = {'isOverlayRequired': True,
-               'apikey': "dccaf2816b88957",
+               'apikey': api_key,
                'language': "eng",
                'OCREngine': 2,
                'base64Image': base64_string,
@@ -92,31 +108,3 @@ def scan_receipt(photo: bytearray) -> Optional[str]:
     overlay = result["ParsedResults"][0]["TextOverlay"]["Lines"]
     amount = find_keyword(overlay)
     return amount
-
-
-def send_image():
-    payload = {'isOverlayRequired': True,
-               'apikey': "dccaf2816b88957",
-               'language': "eng",
-               'OCREngine': 2
-               }
-
-    with open("photos/downloaded.png", 'rb') as f:
-        print("request sent")
-        r = requests.post('https://api.ocr.space/parse/image',
-                          files={"downloaded.png": f},
-                          data=payload,
-                          )
-
-        print("response received")
-        result = r.content.decode()
-        result = json.loads(result)
-        print(result)
-        print(type(result))
-        text = result["ParsedResults"][0]["ParsedText"]
-        overlay = result["ParsedResults"][0]["TextOverlay"]["Lines"]
-        find_keyword(overlay)
-
-
-if __name__ == "__main__":
-    send_image()
