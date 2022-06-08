@@ -31,7 +31,7 @@ class TelegramMessaging(CommunicationMethod):
             raise RuntimeError("The configuration file 'telegram_config.json' is missing or contains errors")
 
     # Check if the message author is authorised
-    def check_permissions(self, update) -> bool:
+    def check_permissions(self, update: Update) -> bool:
         if not self.private_bot:
             return True
         else:
@@ -116,7 +116,7 @@ class TelegramMessaging(CommunicationMethod):
 
     # Listen for incoming messages from all users and print their details
     # Used for configuration
-    def identify_users(self):
+    def identify_users(self) -> None:
         self.private_bot = False
 
         # Create the Updater and pass it your bot's token.

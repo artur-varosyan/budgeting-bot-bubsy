@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict
 import requests
 import json
 import base64
@@ -38,7 +38,7 @@ def parse_amount(text: str) -> str:
 
 
 # Given the location of the keyword, find the numeric amount
-def find_numeric_amount(overlay: [dict], line_no: int, word_no: int, y_coordinate: float) -> Optional[float]:
+def find_numeric_amount(overlay: List[Dict], line_no: int, word_no: int, y_coordinate: float) -> Optional[float]:
     # Start from the same line
     # TODO: The order of amount and keyword lines could be different
     for line in overlay[line_no:]:
@@ -63,7 +63,7 @@ def find_numeric_amount(overlay: [dict], line_no: int, word_no: int, y_coordinat
 # Find total amount paid by finding a keyword and considering location in image
 # Use the fact that the total keyword and the amount paid on a receipt should be on the same line
 # TODO: Use Hamming Distance calculation to identify unclear printed text
-def find_keyword(overlay: [dict]) -> Optional[float]:
+def find_keyword(overlay: List[Dict]) -> Optional[float]:
     for line_no, line in enumerate(overlay):
         words = line["Words"]
 

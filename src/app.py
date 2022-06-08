@@ -2,7 +2,7 @@ import sys
 import threading
 import logging
 import pause
-from typing import Optional
+from typing import Optional, List, Dict
 from datetime import date, timedelta, datetime
 
 from messaging_abstract import CommunicationMethod
@@ -71,7 +71,7 @@ class Bubsy:
             self.budget_summary()
             summary_time += timedelta(days=7)
 
-    def handle_photo(self, photo: bytearray) -> list[str]:
+    def handle_photo(self, photo: bytearray) -> List[str]:
         # If first time contacted, start tracking time
         # The bot can only send messages after at least one has been received
         if not self.contacted:
@@ -94,7 +94,7 @@ class Bubsy:
             messages.extend(self.handle_message(message_string))
             return messages
 
-    def handle_message(self, message: str) -> list[str]:
+    def handle_message(self, message: str) -> List[str]:
         # If first time contacted, start tracking time
         # The bot can only send messages after at least one has been received
         if not self.contacted:
@@ -143,7 +143,7 @@ class Bubsy:
         return reply
 
     @staticmethod
-    def get_action(words: [str]) -> str:
+    def get_action(words: List[str]) -> str:
         # Set of actions
         if "exit" in words:
             return "EXIT"
@@ -249,7 +249,7 @@ class Bubsy:
         self.lock.release()
         return
 
-    def budget_analysis(self, categories: dict, budget: dict, spending: dict) -> str:
+    def budget_analysis(self, categories: Dict, budget: Dict, spending: Dict) -> str:
         analysis = ""
         overspent = []
         for category in categories:
@@ -272,7 +272,7 @@ class Bubsy:
             analysis += "\nConsider spending less next week! 😉"
         return analysis
 
-    def ask_for_category(self, categories=None, reply=None) -> Optional[str]:
+    def ask_for_category(self, categories: Dict = None, reply: str = None) -> Optional[str]:
         if categories is None:
             db = data.connect()
             categories = set(map(lambda c: c[0].decode(), db.get_categories()))
@@ -341,7 +341,8 @@ class Bubsy:
         budget = Helper.to_dict(db.get_budget())
         self.expense_analysis(spending, budget, new_expense)
         db.close()
-        reply = [f"Noted! You spent {'£{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
+        reply = [
+            f"Noted! You spent {'£{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
         analysis = self.expense_analysis(spending, budget, new_expense)
         if analysis != "":
             reply.append(analysis)
@@ -422,7 +423,7 @@ class Bubsy:
         self.lock.release()
         return
 
-    def set_category_budget(self, content, updated_categories):
+    def set_category_budget(self, content: str, updated_categories: Dict):
         for category in updated_categories.keys():
             content += f" What would you like to change your budget for {category} to?"
             self.reply = [content]
@@ -433,7 +434,7 @@ class Bubsy:
             content = '£{:.2f}'.format(amount) + f" on {category}, noted!"
         return content
 
-    def summarise_budget_change(self, categories, updated_categories, budget):
+    def summarise_budget_change(self, categories: Dict, updated_categories: Dict, budget: Dict):
         content = "Overall your new budget will look as follows:\n"
         for category in categories:
             if category in updated_categories.keys():
@@ -445,7 +446,7 @@ class Bubsy:
                 content += f"\n- {category}: £{cat_limit}"
         return content
 
-    def expense_analysis(self, spending: dict, budget: dict, expense: Expense) -> str:
+    def expense_analysis(self, spending: Dict, budget: Dict, expense: Expense) -> str:
         analysis = ""
         category = expense.category
         limit = budget.get(category, 0)
@@ -485,7 +486,7 @@ class Bubsy:
 class Helper:
     # Converts the string message to a list of lowercase words
     @staticmethod
-    def to_words(sentence: str) -> [str]:
+    def to_words(sentence: str) -> List[str]:
         words = []
         word = ""
         insideAmount = False
@@ -509,7 +510,7 @@ class Helper:
         return words
 
     @staticmethod
-    def to_dict(source: list) -> dict:
+    def to_dict(source: List) -> Dict:
         dest = {}
         for pair in source:
             dest[pair[0].decode()] = pair[1]
@@ -517,7 +518,7 @@ class Helper:
 
     # Able to read a custom date in the dd/mm/yyyy and dd/mm formats
     @staticmethod
-    def custom_date(source: str) -> datetime:
+    def custom_date(source: str) -> Optional[datetime]:
         found_date = None
         curr = ""
         year = None
@@ -543,7 +544,7 @@ class Helper:
         return found_date
 
     @staticmethod
-    def get_dates(source: str) -> (datetime, datetime):
+    def get_dates(source: str) -> (Optional[datetime], Optional[datetime]):
         start = None
         end = None
         for word in source:
@@ -587,7 +588,8 @@ class Helper:
         return start, end
 
     @staticmethod
-    def get_amount(words: [str]) -> float:
+    def get_amount(words: List[str]) -> Optional[float]:
+        amount = None
         for word in words:
             if word[0] == "£" or word[0] in DIGITS:
                 # identified amount of expense

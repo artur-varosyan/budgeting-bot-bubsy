@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, List
 
 
 class CommunicationMethod(ABC):
@@ -9,9 +9,9 @@ class CommunicationMethod(ABC):
         pass
 
     @abstractmethod
-    def listen(self, text_handler: Callable[[str], list[str]], photo_handler: Callable[[bytearray], list[str]]):
+    def listen(self, text_handler: Callable[[str], list[str]], photo_handler: Callable[[bytearray], List[str]]):
         pass
 
     @abstractmethod
-    def send_message(self, message):
+    def send_message(self, message: str):
         pass
