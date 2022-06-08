@@ -34,4 +34,5 @@ jobs:
     - name: Test with pytest
       run: |
         cd src
+        echo '{ "apiKey": "${{ secrets.OCR_KEY }}" }' > ocr_config.json
         python3 -m pytest -v ../

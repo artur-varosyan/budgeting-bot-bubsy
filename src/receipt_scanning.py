@@ -64,16 +64,18 @@ def find_numeric_amount(overlay: List[Dict], line_no: int, word_no: int, y_coord
 # Use the fact that the total keyword and the amount paid on a receipt should be on the same line
 # TODO: Use Hamming Distance calculation to identify unclear printed text
 def find_keyword(overlay: List[Dict]) -> Optional[float]:
-    for line_no, line in enumerate(overlay):
-        words = line["Words"]
+    # Check the presence of each keyword in order of priority
+    for keyword in WORDS_ASSOCIATED_WITH_AMOUNT:
 
-        for word_no, word in enumerate(words):
-            word_text = word["WordText"].lower()
-            if any(map(lambda keyword: keyword in word_text, WORDS_ASSOCIATED_WITH_AMOUNT)):
-                keyword_y_coordinate = word["Top"]
-                amount = find_numeric_amount(overlay, line_no, word_no, keyword_y_coordinate)
-                if amount is not None:
-                    return amount
+        for line_no, line in enumerate(overlay):
+            words = line["Words"]
+            for word_no, word in enumerate(words):
+                word_text = word["WordText"].lower()
+                if keyword == word_text:
+                    keyword_y_coordinate = word["Top"]
+                    amount = find_numeric_amount(overlay, line_no, word_no, keyword_y_coordinate)
+                    if amount is not None:
+                        return amount
 
     return None
 

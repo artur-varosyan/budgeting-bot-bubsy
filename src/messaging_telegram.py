@@ -99,6 +99,7 @@ class TelegramMessaging(CommunicationMethod):
         file = context.bot.getFile(photo.file_id)
 
         # Download the photo and store as a bytearray in memory
+        file.download("photos/downloaded.png")
         photo_bytes = file.download_as_bytearray()
 
         replies = self.photo_handler(photo_bytes)

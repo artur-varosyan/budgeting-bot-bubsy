@@ -1,6 +1,8 @@
 from datetime import datetime, date, timedelta
 from src.app import Helper, Bubsy
 
+# All tests should be run from the src/ directory
+
 
 def test_words():
     try:
