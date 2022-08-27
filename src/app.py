@@ -48,7 +48,7 @@ class Bubsy:
         self.cond_var_handler = threading.Condition(self.lock)
         self.cond_var_action = threading.Condition(self.lock)
         self.incoming_message: [str] = ""
-        self.reply: list[str] = []
+        self.reply: List[str] = []
         self.last_action = ""
         # The list of available response options
         self.options = None
@@ -111,6 +111,7 @@ class Bubsy:
                    "SHOW_SPENDING": self.show_spending,
                    "ADD_EXPENSE": self.new_expense,
                    "NEW_BUDGET": self.new_budget,
+                   "ADD_RECURRING": self.add_recurring_payment,
                    "EXIT": None,
                    "UNKNOWN": self.unknown_query}
         print(f"> New Message Received: '{message}'")
@@ -161,6 +162,8 @@ class Bubsy:
             return "ADD_EXPENSE"
         elif ("update" in words or "change" in words or "new" in words) and "budget" in words:
             return "NEW_BUDGET"
+        elif ("set" in words or "add" in words or "create" in words) and "recurring" in words:
+            return "ADD_RECURRING"
         else:
             return "UNKNOWN"
 
@@ -350,6 +353,83 @@ class Bubsy:
         db.close()
         reply = [
             f"Noted! You spent {CURR}{'{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
+        analysis = self.expense_analysis(spending, budget, new_expense)
+        if analysis != "":
+            reply.append(analysis)
+        self.lock.acquire()
+        self.reply = reply
+        self.cond_var_handler.notify_all()
+        self.lock.release()
+        return
+
+    def add_recurring_payment(self):
+        words = self.incoming_message
+        db = data.connect()
+
+        # Convert list of tuples of byte arrays to a set of strings
+        categories = set(map(lambda c: c[0].decode(), db.get_categories()))
+        category = None
+        for word in words:
+            if word in categories:
+                category = word
+                break
+
+        expenseDate, _ = Helper.get_dates(words)
+
+        amount = Helper.get_amount(words)
+
+        while not amount:
+            self.lock.acquire()
+            self.reply = ["What is the amount of this recurring expense?"]
+            self.wait_for_response()
+            words = self.incoming_message
+            amount = Helper.get_amount(words)
+            cancel = False
+            for word in words:
+                if word in CANCEL_ACTION:
+                    cancel = True
+            if cancel:
+                self.reply = ["Sure I cancelled the operation for you."]
+                self.cond_var_handler.notify_all()
+                self.lock.release()
+                return None
+            else:
+                self.lock.release()
+
+        # If no category provided, ask for clarification
+        while not category:
+            category = self.ask_for_category(categories)
+            if category is None:
+                return
+
+        # If no date provided, assume expense occurred today
+        while not expenseDate:
+            self.reply = ["What is the date of the the recurring payment?"]
+            self.lock.acquire()
+            self.wait_for_response()
+            words = self.incoming_message
+            expenseDate, _ = Helper.get_dates(words)
+            cancel = False
+            for word in words:
+                if word in CANCEL_ACTION:
+                    cancel = True
+            if cancel:
+                self.reply = ["Sure I cancelled the operation for you."]
+                self.cond_var_handler.notify_all()
+                self.lock.release()
+                return None
+            else:
+                self.lock.release()
+
+        new_expense = Expense(amount, category, expenseDate, "", True)
+        db.add_expense(new_expense)
+        now = date.today()
+        start = now - timedelta(days=int(now.strftime("%w")))
+        end = start + timedelta(days=6)
+        spending = Helper.to_dict(db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")))
+        db.close()
+        reply = [
+            f"Noted! You set up a new recurring monthly payment of {CURR}{'{:.2f}'.format(new_expense.amount)} for {new_expense.category} starting from {new_expense.date}"]
         analysis = self.expense_analysis(spending, budget, new_expense)
         if analysis != "":
             reply.append(analysis)
