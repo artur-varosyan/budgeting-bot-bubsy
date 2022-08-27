@@ -18,7 +18,8 @@ POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
 CANCEL_ACTION = {"cancel", "stop", "abort"}
 TIME_OF_BUDGET_SUMMARY = 9  # Hours after midnight
 
-CURR = "£"
+# The default currency symbol (shown in front of amount)
+CURR = "$"
 
 # SPENDING CONSTANTS
 OVER_THE_LIMIT = 1.0
@@ -47,7 +48,7 @@ class Bubsy:
         self.cond_var_handler = threading.Condition(self.lock)
         self.cond_var_action = threading.Condition(self.lock)
         self.incoming_message: [str] = ""
-        self.reply: list[str] = ""
+        self.reply: list[str] = []
         self.last_action = ""
         # The list of available response options
         self.options = None
