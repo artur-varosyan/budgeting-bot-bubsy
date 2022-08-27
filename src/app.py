@@ -47,6 +47,8 @@ class Bubsy:
         self.incoming_message: [str] = ""
         self.reply: list[str] = ""
         self.last_action = ""
+        # The list of available response options
+        self.options = None
         # Chosen communication method
         self.communication_method = communication_method
 
@@ -94,7 +96,7 @@ class Bubsy:
             messages.extend(self.handle_message(message_string))
             return messages
 
-    def handle_message(self, message: str) -> List[str]:
+    def handle_message(self, message: str) -> (List[str], List[str]):
         # If first time contacted, start tracking time
         # The bot can only send messages after at least one has been received
         if not self.contacted:
@@ -111,6 +113,7 @@ class Bubsy:
         print(f"> New Message Received: '{message}'")
         words = Helper.to_words(message)
         action = self.get_action(words)
+        self.options = None
         if action == "EXIT":
             # TODO: Only works when in terminal mode
             print("Exiting. Program stopped by user")
@@ -140,7 +143,7 @@ class Bubsy:
             reply = self.reply
             self.lock.release()
         self.last_action = action
-        return reply
+        return reply, self.options
 
     @staticmethod
     def get_action(words: List[str]) -> str:
@@ -286,6 +289,7 @@ class Bubsy:
             reply.append("What is the category of the expense?")
             self.lock.acquire()
             self.reply = reply
+            self.options = list(sorted(categories))
             self.wait_for_response()
             words = self.incoming_message
             cancel = False
@@ -403,6 +407,7 @@ class Bubsy:
             reply.append("Does that look right?")
 
             self.reply = reply
+            self.options = ["Yes!", "No"]
             self.wait_for_response()
             words = self.incoming_message
 

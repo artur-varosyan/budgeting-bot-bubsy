@@ -1,5 +1,5 @@
 from messaging_abstract import CommunicationMethod
-from typing import Callable, List
+from typing import Callable, List, Union
 
 
 # A proxy for messaging with the user in the terminal
@@ -8,11 +8,11 @@ class TerminalMessaging(CommunicationMethod):
     def initialise(self):
         pass
 
-    def listen(self, handler: Callable[[str], str], photo_handler: Callable[[bytearray], List[str]]):
+    def listen(self, handler: Callable[[str], Union[List[str], List[str]]], photo_handler: Callable[[bytearray], List[str]]):
         # Note: Photo messages are not supported in the terminal
         while True:
             message = self.get_message()
-            replies = handler(message)
+            replies, _ = handler(message)
             for reply in replies:
                 self.send_message(reply)
 

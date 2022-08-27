@@ -1,9 +1,9 @@
 from messaging_abstract import CommunicationMethod
 
-from typing import Callable
+from typing import Callable, List
 from json import load
 
-from telegram import Update, ForceReply
+from telegram import Update, ForceReply, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 
@@ -77,6 +77,14 @@ class TelegramMessaging(CommunicationMethod):
             instructions += "- Show me my budget\n"
             update.message.reply_text(instructions)
 
+    # Prompt the user with possible options
+    def custom_keyboard(self, options: List[str]) -> ReplyKeyboardMarkup:
+        kb = []
+        for option in options:
+            kb.append([KeyboardButton(option)])
+
+        return ReplyKeyboardMarkup(kb, one_time_keyboard=True, resize_keyboard=True)
+
     # Analyse the incoming message and pass it to handler
     def incoming_message(self, update: Update, context: CallbackContext) -> None:
         passed = self.check_permissions(update)
@@ -84,9 +92,13 @@ class TelegramMessaging(CommunicationMethod):
             return
 
         self.my_bot = context.bot
-        replies: [str] = self.message_handler(update.message.text)
+        replies, options = self.message_handler(update.message.text)
+
         for reply in replies:
-            update.message.reply_text(reply)
+            if options:
+                update.message.reply_text(reply, reply_markup=self.custom_keyboard(options))
+            else:
+                update.message.reply_text(reply)
 
     # Analyse the incoming photo message and pass it to handler
     def incoming_photo(self, update: Update, context: CallbackContext) -> None:
