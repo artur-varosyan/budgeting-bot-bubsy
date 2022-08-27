@@ -18,6 +18,8 @@ POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
 CANCEL_ACTION = {"cancel", "stop", "abort"}
 TIME_OF_BUDGET_SUMMARY = 9  # Hours after midnight
 
+CURR = "£"
+
 # SPENDING CONSTANTS
 OVER_THE_LIMIT = 1.0
 CLOSE_TO_LIMIT = 0.9
@@ -91,8 +93,8 @@ class Bubsy:
             messages.append("Please send me a message with the expense details instead.")
             return messages
         else:
-            messages = [f"From the receipt I can see that you spent {'£{:.2f}'.format(amount)} 😄"]
-            message_string = "spent " + '£{:.2f}'.format(amount) + " today"
+            messages = [f"From the receipt I can see that you spent {CURR}{'{:.2f}'.format(amount)} 😄"]
+            message_string = "spent " + CURR + '{:.2f}'.format(amount) + " today"
             messages.extend(self.handle_message(message_string))
             return messages
 
@@ -186,7 +188,7 @@ class Bubsy:
         total_spending = sum(spending.values())
         total_spending_last_week = sum(last_week_spending.values())
 
-        message = f"Overall you have spent £{'{:.2f}'.format(total_spending)} last week. "
+        message = f"Overall you have spent {CURR}{'{:.2f}'.format(total_spending)} last week. "
 
         difference = ((total_spending - total_spending_last_week) / total_spending_last_week) * 100
         if difference > 0:
@@ -219,9 +221,9 @@ class Bubsy:
             total_spending += spending.get(category, 0)
             cat_limit = '{:.2f}'.format(budget.get(category))
             total_limit += budget.get(category)
-            content += f"\n - {category}: £{cat_spending} / £{cat_limit}"
-        content += f"\nOverall you spent £{'{:.2f}'.format(total_spending)} " \
-                   f"out of £{'{:.2f}'.format(total_limit)} this week."
+            content += f"\n - {category}: {CURR}{cat_spending} / {CURR}{cat_limit}"
+        content += f"\nOverall you spent {CURR}{'{:.2f}'.format(total_spending)} " \
+                   f"out of {CURR}{'{:.2f}'.format(total_limit)} this week."
         reply.append(content)
         analysis = self.budget_analysis(categories, budget, spending)
         if analysis != "":
@@ -241,11 +243,11 @@ class Bubsy:
         db.close()
         spending = Helper.to_dict(spending)
         total = sum(spending.values())
-        content = f"In total you spent £{'{:.2f}'.format(total)}. Here is a breakdown:"
+        content = f"In total you spent {CURR}{'{:.2f}'.format(total)}. Here is a breakdown:"
         for category in categories:
             category = category[0].decode()
             cat_spending = '{:.2f}'.format(spending.get(category, 0))
-            content += f"\n - {category}: £{cat_spending}"
+            content += f"\n - {category}: {CURR}{cat_spending}"
         self.lock.acquire()
         self.reply = [content]
         self.cond_var_handler.notify_all()
@@ -270,7 +272,7 @@ class Bubsy:
                     text += ", "
                     amounts += ", "
                 text += category[0]
-                amounts += '£{:.2f}'.format(category[1])
+                amounts += CURR + '{:.2f}'.format(category[1])
             analysis += f"You overspent on {text} by {amounts}."
             analysis += "\nConsider spending less next week! 😉"
         return analysis
@@ -346,7 +348,7 @@ class Bubsy:
         self.expense_analysis(spending, budget, new_expense)
         db.close()
         reply = [
-            f"Noted! You spent {'£{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
+            f"Noted! You spent {CURR}{'{:.2f}'.format(new_expense.amount)} on {new_expense.category} on {new_expense.date}"]
         analysis = self.expense_analysis(spending, budget, new_expense)
         if analysis != "":
             reply.append(analysis)
@@ -366,7 +368,7 @@ class Bubsy:
         content = "Here is what your existing budget looks like:"
         for category in categories:
             cat_limit = '{:.2f}'.format(budget.get(category))
-            content += f"\n- {category}: £{cat_limit}"
+            content += f"\n- {category}: {CURR}{cat_limit}"
         reply.append(content)
 
         self.lock.acquire()
@@ -436,7 +438,7 @@ class Bubsy:
             words: [str] = self.incoming_message
             amount = Helper.get_amount(words)
             updated_categories[category] = amount
-            content = '£{:.2f}'.format(amount) + f" on {category}, noted!"
+            content = CURR + '{:.2f}'.format(amount) + f" on {category}, noted!"
         return content
 
     def summarise_budget_change(self, categories: Dict, updated_categories: Dict, budget: Dict):
@@ -445,10 +447,10 @@ class Bubsy:
             if category in updated_categories.keys():
                 old_limit = '{:.2f}'.format(budget.get(category))
                 cat_limit = '{:.2f}'.format(updated_categories[category])
-                content += f"\n* {category}: from £{old_limit} to £{cat_limit}"
+                content += f"\n* {category}: from {CURR}{old_limit} to {CURR}{cat_limit}"
             else:
                 cat_limit = '{:.2f}'.format(budget.get(category))
-                content += f"\n- {category}: £{cat_limit}"
+                content += f"\n- {category}: {CURR}{cat_limit}"
         return content
 
     def expense_analysis(self, spending: Dict, budget: Dict, expense: Expense) -> str:
@@ -461,10 +463,10 @@ class Bubsy:
         else:
             proportion = spent / limit
         if proportion > OVER_THE_LIMIT:
-            amount = '£{:.2f}'.format(spent - limit)
+            amount = CURR + '{:.2f}'.format(spent - limit)
             analysis += f"You overspent on {category} by {amount}!"
         elif proportion > CLOSE_TO_LIMIT:
-            remaining = '£{:.2f}'.format(limit - spent)
+            remaining = CURR + '{:.2f}'.format(limit - spent)
             analysis += f"\nYou have reached {round(proportion * 100)}% of your spending limit on {category}! " \
                         f"You have {remaining} left for this week! "
         return analysis
@@ -596,9 +598,9 @@ class Helper:
     def get_amount(words: List[str]) -> Optional[float]:
         amount = None
         for word in words:
-            if word[0] == "£" or word[0] in DIGITS:
+            if word[0] == CURR or word[0] in DIGITS:
                 # identified amount of expense
-                if word[0] == "£":
+                if word[0] == CURR:
                     try:
                         amount = float(word[1:])
                     except ValueError:
