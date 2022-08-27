@@ -69,6 +69,12 @@ class Bubsy:
         start_of_next_week = datetime.combine(start_of_next_week, datetime.min.time())
         summary_time = start_of_next_week + timedelta(hours=TIME_OF_BUDGET_SUMMARY) + timedelta(minutes=0)
 
+        # TODO:
+        # 1. Pull all recurring payments
+        # 2. Sort by closest date
+        # 3. Create a queue from the sorted list
+        # 4. Pop from the left of the queue and sleep until the date
+
         while True:
             # Wait until next budget summary time
             print("Waiting until " + str(summary_time) + " for next weekly budget summary")
@@ -430,9 +436,6 @@ class Bubsy:
         db.close()
         reply = [
             f"Noted! You set up a new recurring monthly payment of {CURR}{'{:.2f}'.format(new_expense.amount)} for {new_expense.category} starting from {new_expense.date}"]
-        analysis = self.expense_analysis(spending, budget, new_expense)
-        if analysis != "":
-            reply.append(analysis)
         self.lock.acquire()
         self.reply = reply
         self.cond_var_handler.notify_all()
