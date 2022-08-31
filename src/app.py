@@ -21,7 +21,7 @@ TIME_OF_BUDGET_SUMMARY = 9  # Hours after midnight
 # The default currency symbol (shown in front of amount)
 CURR = "$"
 
-# SPENDING CONSTANTS
+# Spending limits at which reminders are sent
 OVER_THE_LIMIT = 1.0
 CLOSE_TO_LIMIT = 0.9
 
@@ -200,11 +200,13 @@ class Bubsy:
 
         message = f"Overall you have spent {CURR}{'{:.2f}'.format(total_spending)} last week. "
 
-        difference = ((total_spending - total_spending_last_week) / total_spending_last_week) * 100
-        if difference > 0:
-            message += f"This is {abs(round(difference))}% more 📈 than the week before 😅. "
-        else:
-            message += f"This is {abs(round(difference))}% less 📉 than the week before 😁. "
+        # If previous week had no spending there is no comparison
+        if total_spending_last_week > 0:
+            difference = ((total_spending - total_spending_last_week) / total_spending_last_week) * 100
+            if difference > 0:
+                message += f"This is {abs(round(difference))}% more 📈 than the week before 😅. "
+            else:
+                message += f"This is {abs(round(difference))}% less 📉 than the week before 😁. "
 
         message += self.budget_analysis(categories, budget, spending)
         self.communication_method.send_message(message)
