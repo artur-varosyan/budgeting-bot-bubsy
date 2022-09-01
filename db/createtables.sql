@@ -1,4 +1,7 @@
+DROP TABLE IF EXISTS ReceiptText;
+DROP TABLE IF EXISTS Receipt;
 DROP TABLE IF EXISTS Expense;
+DROP TABLE IF EXISTS Recurring;
 DROP TABLE IF EXISTS Budget;
 DROP TABLE IF EXISTS Week;
 DROP TABLE IF EXISTS Category;
@@ -18,12 +21,23 @@ CREATE TABLE Budget (
     FOREIGN KEY (category) REFERENCES Category(id)
 );
 
+CREATE TABLE Recurring (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    amount FLOAT NOT NULL,
+    category INTEGER NOT NULL,
+    day_of_the_month INTEGER NOT NULL,
+    active BOOL NOT NULL,
+    FOREIGN KEY (category) REFERENCES Category(id)
+);
+
 CREATE TABLE Expense (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     amount FLOAT NOT NULL,
     category INTEGER NOT NULL,
     date DATE NOT NULL,
     description VARCHAR(255),
-    recurring BOOL,
-    FOREIGN KEY (category) REFERENCES Category(id)
+    recurring INTEGER,
+    FOREIGN KEY (category) REFERENCES Category(id),
+    FOREIGN KEY (recurring) REFERENCES Recurring(id)
 );

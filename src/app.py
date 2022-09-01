@@ -38,6 +38,15 @@ class Expense:
         self.recurring = recurring
 
 
+class Recurring:
+    def __init__(self, id: int, name: str, amount: float, category: str, day_of_the_month: int):
+        self.id = id
+        self.name = name
+        self.amount = amount
+        self.category = category
+        self.day_of_the_month = day_of_the_month
+
+
 class Bubsy:
 
     def __init__(self, communication_method: CommunicationMethod):
@@ -83,6 +92,7 @@ class Bubsy:
         db = data.connect()
         today = date.today()
         recurring_payments = db.get_recurring_payments()
+        print(recurring_payments)
 
         # 1. Add Y months to payment dates if passed
         #    - Check if happened

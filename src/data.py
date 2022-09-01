@@ -3,7 +3,7 @@ from json import load
 
 import mysql.connector
 from mysql.connector import Error
-from app import Expense
+from app import Recurring
 
 
 class DBConnection:
@@ -99,13 +99,12 @@ class DBConnection:
 
     def get_recurring_payments(self):
         try:
-            sql = """SELECT E.id, amount, C.name AS category, date, description, recurring FROM Expense E INNER JOIN Category C on E.category = C.id WHERE recurring = True"""
+            sql = """SELECT R.id AS id, R.name AS name, amount, C.name AS category, day_of_the_month FROM Recurring R INNER JOIN Category C on R.category = C.id WHERE active = TRUE"""
             self.cursor.execute(sql)
             output = self.cursor.fetchall()
             recurring_payments = []
             for row in output:
-                payment = Expense(row[1], row[2].decode(), row[3], row[4].decode(), row[5])
-                payment.id = row[0]
+                payment = Recurring(row[0], row[1].decode(), row[2], row[3].decode(), row[4])
                 recurring_payments.append(payment)
 
             return recurring_payments
