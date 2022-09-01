@@ -1,6 +1,7 @@
 import sys
 import threading
 import logging
+import time
 
 import pause
 from typing import Optional, List, Dict
@@ -31,7 +32,7 @@ CLOSE_TO_LIMIT = 0.9
 
 # The object representing a single expense
 class Expense:
-    def __init__(self, amount: float, category: str, date: str, description: str, recurring: bool):
+    def __init__(self, amount: float, category: str, date: str, description: str, recurring: int = None):
         self.amount = amount
         self.category = category
         self.date = date
@@ -127,13 +128,16 @@ class Bubsy:
 
             # Create a payment reminder
             reminder_date = payment_date - timedelta(days=RECURRING_PAYMENT_REMINDER)
-            reminder_text = f"Hey, just a reminder - your recurring payment {payment.name} of " \
-                            f"{CURR}{'{:.2f}'.format(payment.amount)} will be taken in {RECURRING_PAYMENT_REMINDER} day(s) 😉"
-            reminder = TimeEvent(reminder_date, "REMINDER", reminder_text, payment)
-            self.time_events.add(reminder)
+
+            if reminder_date >= datetime.today():
+                reminder_text = f"Hey, just a reminder - your recurring payment {payment.name} of " \
+                                f"{CURR}{'{:.2f}'.format(payment.amount)} will be taken in {RECURRING_PAYMENT_REMINDER} day(s) 😉"
+                reminder = TimeEvent(reminder_date, "REMINDER", reminder_text, payment)
+                self.time_events.add(reminder)
 
             # Create an automatic expense
-            payment_text = f"Your recurring payment {payment.name} of {CURR}{'{:.2f}'.format(payment.amount)} has been added to your today's expenditure."
+            payment_text = f"Your recurring payment {payment.name} of {CURR}{'{:.2f}'.format(payment.amount)} " \
+                           f"has been added to your today's {payment.category} expenditure."
             automatic_payment = TimeEvent(payment_date, "PAYMENT", payment_text, payment)
             self.time_events.add(automatic_payment)
 
@@ -163,7 +167,25 @@ class Bubsy:
                 self.time_events.add(reminder)
             else:
                 self.communication_method.send_message(next_time_event.text)
-                # TODO: Add the expense
+
+                payment = next_time_event.payment
+                message_string = "spent " + CURR + '{:.2f}'.format(payment.amount) + " today on " + payment.category
+                messages, _ = self.handle_message(message_string)
+                for message in messages[1:]:
+                    self.communication_method.send_message(message)
+
+                payment_month = today.month + 1 % 12
+                payment_date = datetime(today.year, payment_month, next_time_event.payment.day_of_the_month)
+                # If payment date is on weekend, assume it will be taken on the last Friday
+                if payment_date.weekday() >= 5:
+                    payment_date = payment_date - timedelta(days=(payment_date.weekday() - 4))
+
+                automatic_payment = TimeEvent(payment_date, "PAYMENT", next_time_event.text, payment)
+                self.time_events.add(automatic_payment)
+
+            # Sleep for a moment to prevent spam
+            time.sleep(60)
+
 
     def handle_photo(self, photo: bytearray) -> List[str]:
         # If first time contacted, start tracking time
@@ -434,7 +456,7 @@ class Bubsy:
             if category is None:
                 return
 
-        new_expense = Expense(amount, category, expenseDate, "", False)
+        new_expense = Expense(amount, category, expenseDate, "")
         db.add_expense(new_expense)
         now = date.today()
         start = now - timedelta(days=int(now.strftime("%w")))
