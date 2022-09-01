@@ -1,9 +1,11 @@
 import sys
 import threading
 import logging
+
 import pause
 from typing import Optional, List, Dict
 from datetime import date, timedelta, datetime
+from collections import deque
 
 from messaging_abstract import CommunicationMethod
 from messaging_terminal import TerminalMessaging
@@ -54,6 +56,8 @@ class Bubsy:
         self.options = None
         # Chosen communication method
         self.communication_method = communication_method
+        # The queue of times to be awaken at
+        self.wake_queue = deque([])
 
     def start(self):
         # Initialise communication (if needed)
@@ -74,6 +78,18 @@ class Bubsy:
         # 2. Sort by closest date
         # 3. Create a queue from the sorted list
         # 4. Pop from the left of the queue and sleep until the date
+        # 5. Recreate the expense when finished
+
+        db = data.connect()
+        today = date.today()
+        recurring_payments = db.get_recurring_payments()
+
+        # 1. Add Y months to payment dates if passed
+        #    - Check if happened
+        #    - Find the difference in months
+        #    - Add Y month, avoiding weekends and taking the day before in case
+        # 2. Subtract the X days off to remind
+        # 3. Sort
 
         while True:
             # Wait until next budget summary time
@@ -219,6 +235,7 @@ class Bubsy:
         start = now - timedelta(days=weekday)
         end = start + timedelta(days=6)
         db = data.connect()
+        db.get_recurring_payments()
         categories = db.get_categories()
         budget = db.get_budget()
         spending = db.get_spending(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
