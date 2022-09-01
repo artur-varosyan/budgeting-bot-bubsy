@@ -535,6 +535,34 @@ class Bubsy:
             else:
                 self.lock.release()
 
+        payment_name = None
+        while not payment_name:
+            self.reply = ["What is the name of the the recurring payment?"]
+            self.lock.acquire()
+            self.wait_for_response()
+            words = self.incoming_message
+            payment_name = " ".join(words)
+            cancel = False
+            for word in words:
+                if word in CANCEL_ACTION:
+                    cancel = True
+            if cancel:
+                self.reply = ["Sure I cancelled the operation for you."]
+                self.cond_var_handler.notify_all()
+                self.lock.release()
+                return None
+            else:
+                self.lock.release()
+
+        # TODO: Create a new recurring payment object
+        # TODO: Add a new row to Recurring database
+
+        # TODO: Check if date happened
+        # TODO: If yes, create a new expense linked to that recurring payment
+        # TODO: If no, return (expense will be created automatically by the time tracker
+
+        # TODO: Force the update of time events list
+
         new_expense = Expense(amount, category, expenseDate, "", True)
         db.add_expense(new_expense)
         now = date.today()
