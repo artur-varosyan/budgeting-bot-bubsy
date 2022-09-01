@@ -19,6 +19,7 @@ PUNCTUATION = {'.', ',', '!', '?', ':', ';'}
 POSITIVE_RESPONSE = {"yes", "yeah", "correct", "yep", "okay"}
 CANCEL_ACTION = {"cancel", "stop", "abort"}
 TIME_OF_BUDGET_SUMMARY = 9  # Hours after midnight
+RECURRING_PAYMENT_REMINDER = 1  # The number of days before a recurring payment when the user should be reminded
 
 # The default currency symbol (shown in front of amount)
 CURR = "$"
@@ -47,6 +48,14 @@ class Recurring:
         self.day_of_the_month = day_of_the_month
 
 
+class TimeEvent:
+    def __init__(self, date: datetime, type: str, text: str, payment: Recurring = None):
+        self.date = date
+        self.type = type
+        self.text = text
+        self.payment = payment
+
+
 class Bubsy:
 
     def __init__(self, communication_method: CommunicationMethod):
@@ -66,7 +75,7 @@ class Bubsy:
         # Chosen communication method
         self.communication_method = communication_method
         # The queue of times to be awaken at
-        self.wake_queue = deque([])
+        self.time_events = set()
 
     def start(self):
         # Initialise communication (if needed)
@@ -90,7 +99,6 @@ class Bubsy:
         # 5. Recreate the expense when finished
 
         db = data.connect()
-        today = date.today()
         recurring_payments = db.get_recurring_payments()
         print(recurring_payments)
 
@@ -101,12 +109,61 @@ class Bubsy:
         # 2. Subtract the X days off to remind
         # 3. Sort
 
+        # Add next budget summary
+        self.time_events.add(TimeEvent(summary_time, "BUDGET_SUMMARY", ""))
+
+        today = date.today()
+        for payment in recurring_payments:
+            # Find the next payment date
+            if payment.day_of_the_month < today.day:
+                payment_month = today.month + 1 % 12
+            else:
+                payment_month = today.month
+
+            payment_date = datetime(today.year, payment_month, payment.day_of_the_month)
+            # If payment date is on weekend, assume it will be taken on the last Friday
+            if payment_date.weekday() >= 5:
+                payment_date = payment_date - timedelta(days=(payment_date.weekday() - 4))
+
+            # Create a payment reminder
+            reminder_date = payment_date - timedelta(days=RECURRING_PAYMENT_REMINDER)
+            reminder_text = f"Hey, just a reminder - your recurring payment {payment.name} of " \
+                            f"{CURR}{'{:.2f}'.format(payment.amount)} will be taken in {RECURRING_PAYMENT_REMINDER} day(s) 😉"
+            reminder = TimeEvent(reminder_date, "REMINDER", reminder_text, payment)
+            self.time_events.add(reminder)
+
+            # Create an automatic expense
+            payment_text = f"Your recurring payment {payment.name} of {CURR}{'{:.2f}'.format(payment.amount)} has been added to your today's expenditure."
+            automatic_payment = TimeEvent(payment_date, "PAYMENT", payment_text, payment)
+            self.time_events.add(automatic_payment)
+
         while True:
-            # Wait until next budget summary time
-            print("Waiting until " + str(summary_time) + " for next weekly budget summary")
-            pause.until(summary_time)
-            self.budget_summary()
-            summary_time += timedelta(days=7)
+            # Wait until the next TimeEvent
+            # TODO: Use a better data structure to improve efficiency of this
+            next_time_event = min(self.time_events, key=lambda event: event.date)
+            print("Waiting until " + str(next_time_event.date) + " for next " + next_time_event.type)
+            pause.until(next_time_event.date)
+
+            self.time_events.remove(next_time_event)
+            if next_time_event.type == "BUDGET_SUMMARY":
+                self.budget_summary()
+                next_summary = next_time_event.date + timedelta(days=7)
+                self.time_events.add(TimeEvent(next_summary, "BUDGET_SUMMARY", ""))
+            elif next_time_event.type == "REMINDER":
+                self.communication_method.send_message(next_time_event.text)
+
+                payment_month = today.month + 1 % 12
+                payment_date = datetime(today.year, payment_month, next_time_event.payment.day_of_the_month)
+                # If payment date is on weekend, assume it will be taken on the last Friday
+                if payment_date.weekday() >= 5:
+                    payment_date = payment_date - timedelta(days=(payment_date.weekday() - 4))
+
+                reminder_date = payment_date - timedelta(days=RECURRING_PAYMENT_REMINDER)
+                reminder = TimeEvent(reminder_date, "REMINDER", next_time_event.text, next_time_event.payment)
+                self.time_events.add(reminder)
+            else:
+                self.communication_method.send_message(next_time_event.text)
+                # TODO: Add the expense
 
     def handle_photo(self, photo: bytearray) -> List[str]:
         # If first time contacted, start tracking time
@@ -727,7 +784,7 @@ class Helper:
 
 
 def main():
-    args = sys.argv
+    args = ["", "--terminal"]
     chosen_communication: CommunicationMethod = None
     if len(args) == 2 and args[1] == "--terminal":
         chosen_communication = TerminalMessaging()
